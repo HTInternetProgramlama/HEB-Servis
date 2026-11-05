@@ -1,0 +1,202 @@
+/* Tahsilat cihazları, fiş, paylaşım ve yazıcı canlandırmaları */
+
+/* ═════════ Tahsilat: yöntem seçimi ═════════ */
+.method-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px }
+.method-pick button { display: grid; justify-items: start; gap: 2px; padding: 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); text-align: left; transition: border-color .15s, box-shadow .15s }
+.method-pick button .icon { color: var(--muted); margin-bottom: 4px }
+.method-pick button b { font-weight: 600 }
+.method-pick button small { font-size: 12px; color: var(--muted) }
+.method-pick button.active { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink) }
+.method-pick button.active .icon { color: var(--accent) }
+.big-input { font-size: 18px !important; font-weight: 600; font-family: var(--mono) }
+
+/* ═════════ Tahsilat sahnesi ═════════ */
+.pay-stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; min-height: 610px }
+.pay-left { position: relative; border-radius: 10px; background: radial-gradient(120% 80% at 50% 100%, #dfe3e8 0, #eef0f3 55%, #f6f7f8 100%); overflow: hidden; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 28px }
+.pay-left::after { content: ''; position: absolute; left: 12%; right: 12%; bottom: 16px; height: 20px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0, 0, 0, .18), transparent); pointer-events: none }
+.pay-right { display: flex; flex-direction: column; justify-content: center; min-width: 0 }
+.pay-device { position: relative; z-index: 1; animation: rise .55s cubic-bezier(.2, .8, .2, 1) backwards; transition: transform 2.5s cubic-bezier(.4, 0, .3, 1) }
+.pay-device.pos.step-print, .pay-device.pos.step-printed, .pay-device.pos.step-torn { transform: translateY(210px) }
+.pay-device.tprinter.step-print, .pay-device.tprinter.step-printed, .pay-device.tprinter.step-torn { transform: translateY(16px) }
+.pay-stage.is-done .pay-device { transform: translateY(210px) }
+@keyframes rise { from { transform: translateY(70px); opacity: 0 } }
+
+/* POS cihazı */
+.pos-body { position: relative; width: 196px; padding: 18px 13px 12px; border-radius: 22px 22px 30px 30px; background: linear-gradient(160deg, #353b43 0, #20242a 55%, #181b20 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), inset 0 -3px 0 rgba(0, 0, 0, .35), 0 18px 30px -12px rgba(0, 0, 0, .45); transition: opacity .4s, transform .5s }
+.pos-slot { position: absolute; top: 7px; left: 26px; right: 26px; height: 5px; border-radius: 3px; background: #07080a; box-shadow: inset 0 1px 2px #000, 0 1px 0 rgba(255, 255, 255, .08) }
+.pos-screen { height: 150px; border-radius: 10px; background: linear-gradient(180deg, #0f2b4c, #0a1c33); box-shadow: inset 0 0 0 2px #0a0d11, inset 0 2px 12px rgba(0, 0, 0, .5); color: #e8f1ff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; text-align: center; padding: 10px; font-family: var(--mono); transition: background .4s }
+.pos-screen small { font-size: 9.5px; letter-spacing: .14em; color: #8fb3e0 }
+.pos-screen strong { font-size: 19px; font-weight: 600; letter-spacing: -.01em }
+.pos-screen em { font-style: normal; font-size: 10px; color: #b8cde8; font-family: var(--font) }
+.pos-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px }
+.pos-keys span { height: 22px; border-radius: 6px; background: linear-gradient(#444a53, #33383f); color: #d7dce2; font: 600 11px var(--mono); display: flex; align-items: center; justify-content: center; box-shadow: 0 1.5px 0 #111 }
+.pos-keys .k-red { background: linear-gradient(#d0473a, #a8301f) }
+.pos-keys .k-yel { background: linear-gradient(#e2b32c, #b88a0f); color: #2a2000 }
+.pos-keys .k-grn { background: linear-gradient(#3cad66, #22844a) }
+.pos-brand { margin-top: 10px; text-align: center; font: 600 8.5px var(--font); letter-spacing: .2em; color: #6f7781 }
+.step-approved .pos-screen, .step-print .pos-screen, .step-printed .pos-screen, .step-torn .pos-screen { background: linear-gradient(180deg, #0f3d2a, #0a2a1d) }
+.pos-nfc { position: relative; width: 44px; height: 30px; margin: 4px 0 }
+.pos-nfc i { position: absolute; left: 50%; top: 50%; border: 2px solid #8fd0ff; border-left-color: transparent; border-bottom-color: transparent; border-radius: 50%; transform: translate(-50%, -50%) rotate(45deg); opacity: 0; animation: nfc 1.4s infinite }
+.pos-nfc i:nth-child(1) { width: 10px; height: 10px }
+.pos-nfc i:nth-child(2) { width: 20px; height: 20px; animation-delay: .2s }
+.pos-nfc i:nth-child(3) { width: 30px; height: 30px; animation-delay: .4s }
+@keyframes nfc { 0%, 100% { opacity: .15 } 40% { opacity: 1 } }
+.pos-dots { display: flex; gap: 5px; margin: 6px 0 }
+.pos-dots i { width: 7px; height: 7px; border-radius: 50%; background: #8fb3e0; animation: dot 1s infinite }
+.pos-dots i:nth-child(2) { animation-delay: .15s }
+.pos-dots i:nth-child(3) { animation-delay: .3s }
+.pos-dots i:nth-child(4) { animation-delay: .45s }
+@keyframes dot { 0%, 100% { opacity: .25; transform: translateY(0) } 50% { opacity: 1; transform: translateY(-3px) } }
+.pos-spin, .pos-wait { width: 26px; height: 26px; border: 3px solid rgba(143, 179, 224, .25); border-top-color: #8fb3e0; border-radius: 50%; animation: spin .8s linear infinite; margin: 6px 0 }
+.pos-wait { width: 18px; height: 18px }
+@keyframes spin { to { transform: rotate(360deg) } }
+.pos-ok { width: 44px; height: 44px; border-radius: 50%; background: #2fbf6c; color: #fff; display: flex; align-items: center; justify-content: center; animation: okpop .45s cubic-bezier(.2, 1.6, .4, 1) both; box-shadow: 0 0 0 6px rgba(47, 191, 108, .2) }
+@keyframes okpop { from { transform: scale(.2); opacity: 0 } }
+
+/* Banka kartı (demo) */
+.pay-card { position: absolute; z-index: 3; top: 26px; left: 50%; width: 150px; height: 94px; border-radius: 10px; padding: 12px; color: #fff; background: linear-gradient(135deg, #3d4f6b 0, #22304a 45%, #121a2a 100%); box-shadow: 0 14px 24px -8px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .2); transform: translate(70%, 120px) rotate(18deg); opacity: 0; transition: transform .7s cubic-bezier(.2, .8, .2, 1), opacity .4s; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr auto; overflow: hidden }
+.pay-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .18) 45%, transparent 60%) }
+.pay-card.in { transform: translate(-50%, 6px) rotate(-6deg); opacity: 1 }
+.step-read .pay-card.in { animation: tapcard 1s ease-in-out }
+@keyframes tapcard { 50% { transform: translate(-50%, 16px) rotate(-6deg) scale(.97) } }
+.pc-chip { width: 22px; height: 16px; border-radius: 3px; background: linear-gradient(135deg, #e9cf86, #b8963f) }
+.pc-nfc { justify-self: end; font-size: 11px; letter-spacing: -2px; opacity: .8; transform: rotate(90deg) }
+.pc-no { grid-column: 1 / -1; align-self: end; font: 500 10px var(--mono); letter-spacing: .08em }
+.pc-name { grid-column: 1 / -1; font: 600 8px var(--font); letter-spacing: .14em; opacity: .75; margin-top: 3px }
+
+/* Fiş yazıcısı (nakit / havale) */
+.tp-body { position: relative; width: 230px; height: 112px; border-radius: 16px 16px 20px 20px; background: linear-gradient(180deg, #fafbfb, #d9dde2); border: 1px solid #c2c8cf; box-shadow: inset 0 2px 0 #fff, 0 18px 30px -14px rgba(0, 0, 0, .4); display: flex; align-items: flex-end; justify-content: space-between; padding: 14px 18px; transition: opacity .4s, transform .5s }
+.tp-body .pos-slot { top: 14px; left: 22px; right: 22px; background: #2b2f34 }
+.tp-led { width: 8px; height: 8px; border-radius: 50%; background: #2fbf6c; box-shadow: 0 0 8px #2fbf6c; animation: blink 1.2s infinite }
+@keyframes blink { 50% { opacity: .35 } }
+.tp-label { font: 600 8.5px var(--font); letter-spacing: .18em; color: #8a929c }
+
+/* Fişin cihazdan çıkışı: kap yukarı doğru büyür, fişin başı önce çıkar ve yukarı itilir */
+.receipt-feed { position: absolute; z-index: 2; left: 50%; bottom: calc(100% - 12px); width: 176px; height: 0; overflow: hidden; transform: translateX(-50%); transition: height 2.5s steps(28, end) }
+.tprinter .receipt-feed { bottom: calc(100% - 19px) }
+.receipt-feed.torn { overflow: visible; animation: tear .6s cubic-bezier(.3, .7, .3, 1) forwards }
+@keyframes tear { 30% { transform: translateX(-50%) rotate(2deg) } 100% { transform: translate(-42%, -14px) rotate(-3deg) } }
+.receipt { width: 176px; padding: 14px 11px 16px; background: #fffef9; color: #1d1d1d; font: 400 9.5px/1.45 var(--mono); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); position: relative }
+.torn .receipt::after { content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 7px; background: linear-gradient(-45deg, transparent 4px, #fffef9 0) 0 0 / 8px 8px, linear-gradient(45deg, transparent 4px, #fffef9 0) 0 0 / 8px 8px }
+.r-center { text-align: center }
+.r-strong { font-weight: 600; font-size: 10.5px }
+.r-small { font-size: 8.5px; color: #555 }
+.r-row { display: flex; justify-content: space-between; gap: 8px }
+.r-sep { border-top: 1px dashed #9a9a9a; margin: 7px 0 }
+.r-total { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700 }
+.r-barcode { display: flex; justify-content: center; gap: 1.2px; height: 30px; margin: 10px 0 3px }
+.r-barcode i { background: #1d1d1d; display: block }
+.r-demo { margin-top: 6px; letter-spacing: .06em }
+.pay-stage.is-done .pos-body, .pay-stage.is-done .tp-body, .pay-stage.is-done .pay-card { opacity: 0; transform: translateY(90px) }
+.pay-stage.is-done .receipt-feed { animation: none; overflow: visible; transform: translate(-50%, -30px) rotate(-3deg); transition: transform .6s cubic-bezier(.2, .8, .2, 1) }
+.pay-stage.is-done .receipt::after { content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 7px; background: linear-gradient(-45deg, transparent 4px, #fffef9 0) 0 0 / 8px 8px, linear-gradient(45deg, transparent 4px, #fffef9 0) 0 0 / 8px 8px }
+
+/* Sağ sütun: adımlar */
+.pay-status { display: grid; gap: 22px }
+.pay-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px }
+.pay-steps li { display: flex; align-items: center; gap: 10px; color: var(--subtle); transition: color .3s }
+.pay-steps li span { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line-strong); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .3s }
+.pay-steps li.now { color: var(--ink); font-weight: 500 }
+.pay-steps li.now span { border-color: var(--accent); box-shadow: 0 0 0 4px #fde6d8; animation: ring 1.2s infinite }
+@keyframes ring { 50% { box-shadow: 0 0 0 7px rgba(232, 89, 12, .08) } }
+.pay-steps li.done { color: var(--ink-2) }
+.pay-steps li.done span { background: var(--ok); border-color: var(--ok); color: #fff }
+.pay-amount { padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2) }
+.pay-amount small { display: block; color: var(--muted); font-size: 12px }
+.pay-amount strong { font: 600 28px var(--mono); letter-spacing: -.02em }
+.pay-done { display: grid; gap: 16px; animation: fadeup .4s ease both }
+@keyframes fadeup { from { opacity: 0; transform: translateY(10px) } }
+.pay-done-head { display: flex; align-items: center; gap: 12px }
+.pay-done-head strong { display: block; font-size: 16px }
+.pay-done-head small { color: var(--muted) }
+.done-check { width: 40px; height: 40px; border-radius: 50%; background: var(--ok); color: #fff; display: flex; align-items: center; justify-content: center; animation: okpop .45s cubic-bezier(.2, 1.6, .4, 1) both; flex-shrink: 0 }
+
+/* ═════════ Paylaşım ═════════ */
+.share { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start }
+.share.compact { grid-template-columns: minmax(0, 1fr) }
+.chat { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #ebe7e1 }
+.chat-head { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: #23292f; color: #fff }
+.chat-head strong { display: block; font-size: 13px; font-weight: 500 }
+.chat-head small { font-size: 11.5px; color: #a7b0ba }
+.chat-avatar { width: 30px; height: 30px; border-radius: 50%; background: #48525c; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600 }
+.chat-body { padding: 14px 12px; min-height: 120px; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; align-items: flex-end; background-image: radial-gradient(rgba(0, 0, 0, .035) 1px, transparent 1px); background-size: 12px 12px }
+.share.compact .chat-body { max-height: 190px }
+.bubble { position: relative; max-width: 92%; padding: 8px 10px 18px; border-radius: 10px 2px 10px 10px; background: #d9f4d0; color: #102016; font-size: 12.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; box-shadow: 0 1px 1px rgba(0, 0, 0, .08); animation: bubble .35s cubic-bezier(.2, 1.3, .4, 1) both; transform-origin: top right }
+@keyframes bubble { from { opacity: 0; transform: scale(.85) translateY(6px) } }
+.bubble-meta { position: absolute; right: 8px; bottom: 3px; display: inline-flex; gap: 3px; align-items: center; font-size: 10px; color: #5a7a63 }
+.bubble-meta svg { color: #3a91d6 }
+.bubble.typing { display: flex; gap: 4px; padding: 11px 13px; background: #fff; border-radius: 10px }
+.bubble.typing i { width: 6px; height: 6px; border-radius: 50%; background: #9aa3ac; animation: dot 1s infinite }
+.bubble.typing i:nth-child(2) { animation-delay: .15s }
+.bubble.typing i:nth-child(3) { animation-delay: .3s }
+.share-actions { display: grid; gap: 8px }
+.share.compact .share-actions { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+.share.compact .share-btn.wa { grid-column: 1 / -1 }
+.share-btn { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--ink); text-align: left; transition: background .15s, transform .15s; min-width: 0 }
+.share-btn > span { min-width: 0 }
+.share-btn:hover { background: var(--surface-2); text-decoration: none; transform: translateY(-1px) }
+.share-btn b { display: block; font-weight: 600; font-size: 13px }
+.share-btn small { display: block; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.share-btn.wa { background: #1e9e55; border-color: #1e9e55; color: #fff }
+.share-btn.wa small { color: rgba(255, 255, 255, .85) }
+.share-btn.wa:hover { background: #188a49 }
+.share-btn.disabled { opacity: .5; pointer-events: none }
+.sent-banner { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 12px 14px; border-radius: var(--radius); background: var(--ok-bg); border: 1px solid #b9dcc5 }
+.sent-banner strong { display: block }
+.sent-banner small { color: var(--ink-2) }
+.sent-plane { width: 36px; height: 36px; border-radius: 50%; background: var(--ok); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; animation: fly .7s cubic-bezier(.2, .9, .3, 1.2) both }
+@keyframes fly { from { transform: translate(-40px, 18px) rotate(-25deg) scale(.6); opacity: 0 } }
+
+/* ═════════ Servis formu: yazıcıdan çıkış ═════════ */
+.printjob { width: min(210mm, 100%); margin: 0 auto }
+.printer { position: relative; z-index: 2; width: calc(100% + 36px); margin: 0 -18px; height: 104px; transition: height .6s ease .2s, opacity .5s ease .2s; animation: rise .5s cubic-bezier(.2, .8, .2, 1) both }
+.printer-top { height: 30px; margin: 0 22px; border-radius: 12px 12px 0 0; background: linear-gradient(180deg, #f5f6f7, #e2e5e9); border: 1px solid #c8cdd3; border-bottom: 0; display: flex; justify-content: center; align-items: flex-end }
+.printer-tray { width: 60%; height: 8px; border-radius: 4px 4px 0 0; background: #cfd4da }
+.printer-face { height: 58px; border-radius: 10px; background: linear-gradient(180deg, #ffffff, #d7dbe0); border: 1px solid #bfc5cc; box-shadow: 0 10px 18px -10px rgba(0, 0, 0, .35); display: flex; align-items: center; gap: 14px; padding: 0 18px 8px }
+.printer-brand { font: 600 10px var(--font); letter-spacing: .16em; color: #7a838d; margin-right: auto }
+.printer-screen { font: 500 11px var(--mono); padding: 3px 10px; border-radius: 4px; background: #1e2a36; color: #9fd3ff; min-width: 120px; text-align: center }
+.printer-led { width: 9px; height: 9px; border-radius: 50%; background: #2fbf6c; box-shadow: 0 0 8px #2fbf6c }
+.printing .printer-led { animation: blink .5s infinite }
+.printer-slot { position: absolute; left: 14px; right: 14px; bottom: 6px; height: 12px; border-radius: 0 0 8px 8px; background: linear-gradient(180deg, #2a2f35, #4a5058); box-shadow: inset 0 3px 4px rgba(0, 0, 0, .5) }
+.paper-clip { overflow: hidden; margin: -12px -12px 0; padding: 0 12px 24px }
+.printing .sheet { animation: feed 3.4s cubic-bezier(.45, 0, .55, 1) both }
+@keyframes feed {
+  0% { transform: translateY(-100%) }
+  12% { transform: translateY(-92%) }
+  18% { transform: translateY(-90%) }
+  34% { transform: translateY(-70%) }
+  40% { transform: translateY(-68%) }
+  58% { transform: translateY(-42%) }
+  64% { transform: translateY(-40%) }
+  86% { transform: translateY(-8%) }
+  100% { transform: translateY(0) }
+}
+.done .printer { height: 0; opacity: 0; overflow: hidden }
+.done .paper-clip { overflow: visible }
+.sheet { position: relative }
+.stamp { position: absolute; bottom: 62px; left: 52%; z-index: 2; display: grid; justify-items: center; padding: 6px 14px; border: 3px solid #b8322a; border-radius: 6px; color: #b8322a; transform: rotate(-11deg); opacity: .82; mix-blend-mode: multiply; animation: stamp .42s cubic-bezier(.3, 1.6, .5, 1) .25s both; pointer-events: none }
+.stamp::before { content: ''; position: absolute; inset: 3px; border: 1px solid currentColor; border-radius: 3px }
+.stamp b { font: 800 17px var(--font); letter-spacing: .12em }
+.stamp small { font: 600 10px var(--mono); letter-spacing: .1em }
+@keyframes stamp { from { transform: rotate(-11deg) scale(2.4); opacity: 0 } 70% { opacity: .9 } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important }
+}
+@media print {
+  .printer, .print-toolbar { display: none !important }
+  .printing .sheet, .sheet { animation: none !important; transform: none !important }
+  .paper-clip { overflow: visible; padding: 0; margin: 0 }
+  body:has(.pay-stage) * { visibility: hidden }
+  body:has(.pay-stage) .receipt, body:has(.pay-stage) .receipt * { visibility: visible }
+  body:has(.pay-stage) .receipt { position: fixed; left: 0; top: 0; box-shadow: none }
+}
+@media (max-width: 720px) {
+  .pay-stage { grid-template-columns: minmax(0, 1fr); min-height: 0 }
+  .pay-left { min-height: 580px }
+  .method-pick { grid-template-columns: minmax(0, 1fr) }
+  .share, .share.compact .share-actions { grid-template-columns: minmax(0, 1fr) }
+  .printer { width: 100%; margin: 0 }
+  .stamp { bottom: 40px; left: auto; right: 16px }
+  .stamp b { font-size: 13px }
+}
