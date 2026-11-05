@@ -1,7 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { detailHref } from '@/lib/routes';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/components/store';
 import { Button, Card, Empty, KV, PageHeader, Score, Stat, Status, Tabs } from '@/components/ui';
 import { Icon } from '@/components/icons';
@@ -13,8 +14,12 @@ import type { Job } from '@/lib/types';
 
 type Tab = 'vehicles' | 'visits' | 'appointments' | 'notes' | 'evaluations';
 
-export default function CustomerDetail() {
-  const { id } = useParams<{ id: string }>();
+export default function Page() {
+  return <Suspense><CustomerDetail /></Suspense>;
+}
+
+function CustomerDetail() {
+  const id = useSearchParams().get('id');
   const { state, actor, run } = useApp();
   const [tab, setTab] = useState<Tab>('vehicles');
   const [modal, setModal] = useState<'' | 'edit' | 'vehicle' | 'appointment' | 'note'>('');
@@ -47,11 +52,11 @@ export default function CustomerDetail() {
         <Tabs value={tab} onChange={setTab} items={[['vehicles', 'Araçlar', vehicles.length], ['visits', 'Servis geçmişi', jobs.length], ['appointments', 'Randevular', appts.length], ['notes', 'İç notlar', notes.length], ['evaluations', 'Değerlendirmeler', evals.length]]} />
         {tab === 'vehicles' && <Card flush>{vehicles.length ? <table className="table"><thead><tr><th>Araç</th><th className="hide-sm">Yakıt / vites</th><th className="hide-sm">Sonraki bakım</th><th>Durum</th></tr></thead>
           <tbody>{vehicles.map(v => { const open = state.jobs.find(j => j.vehicleId === v.id && !['Teslim edildi', 'İptal'].includes(j.status)); return <tr key={v.id}>
-            <td><Link href={`/araclar/${v.id}`}><VehicleCell vehicle={v} /></Link></td><td className="hide-sm">{v.fuel} · {v.transmission}</td>
+            <td><Link href={detailHref('/araclar/detay', v.id)}><VehicleCell vehicle={v} /></Link></td><td className="hide-sm">{v.fuel} · {v.transmission}</td>
             <td className="hide-sm">{v.nextServiceDate ? fmtDate(v.nextServiceDate) : '—'}{v.nextServiceKm && <small className="cell-sub">{v.nextServiceKm.toLocaleString('tr-TR')} km</small>}</td>
-            <td>{open ? <Link href={`/is-emirleri/${open.id}`}><Status value={open.status} /></Link> : <span className="muted small">Serviste değil</span>}</td></tr> })}</tbody></table> : <Empty icon="car" title="Kayıtlı araç yok" />}</Card>}
+            <td>{open ? <Link href={detailHref('/is-emirleri/detay', open.id)}><Status value={open.status} /></Link> : <span className="muted small">Serviste değil</span>}</td></tr> })}</tbody></table> : <Empty icon="car" title="Kayıtlı araç yok" />}</Card>}
         {tab === 'visits' && <Card flush>{jobs.length ? <table className="table"><thead><tr><th>İş emri</th><th>Araç</th><th className="hide-sm">Hizmet</th><th>Durum</th><th className="num">Tutar</th><th /></tr></thead>
-          <tbody>{jobs.map(j => <tr key={j.id}><td><Link className="mono strong" href={`/is-emirleri/${j.id}`}>{j.no}</Link><small className="cell-sub">{fmtDate(j.createdAt)}</small></td>
+          <tbody>{jobs.map(j => <tr key={j.id}><td><Link className="mono strong" href={detailHref('/is-emirleri/detay', j.id)}>{j.no}</Link><small className="cell-sub">{fmtDate(j.createdAt)}</small></td>
             <td><VehicleCell vehicle={state.vehicles.find(v => v.id === j.vehicleId)} /></td><td className="hide-sm">{serviceName(state, j.serviceId)}</td><td><Status value={j.status} /></td>
             <td className="num">{money(amountDue(j))}{balance(j) > 0 && <small className="cell-sub text-bad">{money(balance(j))} açık</small>}</td>
             <td className="actions">{j.status === 'Teslim edildi' && can(actor, 'evaluation.write') && <Button size="sm" icon="star" onClick={() => setEvalJob(j)}>{evals.some(e => e.jobId === j.id) ? 'Güncelle' : 'Değerlendir'}</Button>}</td></tr>)}</tbody></table> : <Empty icon="wrench" title="Servis kaydı yok" />}</Card>}
@@ -59,7 +64,7 @@ export default function CustomerDetail() {
           <tbody>{appts.map(a => <tr key={a.id}><td className="mono">{a.no}</td><td>{fmtDate(a.date)} {a.time}<small className="cell-sub">{resourceName(state, a.resourceId)}</small></td><td className="hide-sm">{serviceName(state, a.serviceId)}</td><td className="hide-sm">{a.source}</td><td><Status value={a.status} /></td></tr>)}</tbody></table> : <Empty icon="calendar" title="Randevu yok" />}</Card>}
         {tab === 'notes' && <Card title="İç notlar" sub="Yalnız yönetici ve danışmanlar görür; portal, servis formu ve ön değerlendirme girdilerinden çıkarılır." actions={<Button size="sm" icon="plus" onClick={() => setModal('note')}>Not ekle</Button>} flush>
           {notes.length ? <ul className="note-list">{notes.map(n => <li key={n.id}>
-            <div className="row-between"><span className="tag slate">{n.category}</span><small className="muted">{n.by} · {fmtDateTime(n.at)}{n.jobId && <> · <Link href={`/is-emirleri/${n.jobId}`}>{state.jobs.find(j => j.id === n.jobId)?.no}</Link></>}</small></div>
+            <div className="row-between"><span className="tag slate">{n.category}</span><small className="muted">{n.by} · {fmtDateTime(n.at)}{n.jobId && <> · <Link href={detailHref('/is-emirleri/detay', n.jobId)}>{state.jobs.find(j => j.id === n.jobId)?.no}</Link></>}</small></div>
             {editing === n.id ? <form className="inline-edit" onSubmit={e => { e.preventDefault(); const text = String(new FormData(e.currentTarget).get('t')); run((s, a) => editNote(s, a, n.id, text), 'İç not düzeltildi', c.no).then(err => !err && setEditing(null)) }}>
               <textarea name="t" defaultValue={n.text} rows={3} maxLength={1000} /><div className="btn-row"><Button size="sm" onClick={() => setEditing(null)}>Vazgeç</Button><button className="btn sm primary">Kaydet</button></div></form>
               : <p>{n.text}</p>}

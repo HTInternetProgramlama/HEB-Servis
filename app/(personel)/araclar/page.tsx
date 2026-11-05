@@ -1,4 +1,5 @@
 'use client';
+import { detailHref } from '@/lib/routes';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -27,10 +28,10 @@ export default function VehiclesPage() {
         const owner = state.customers.find(c => c.id === v.customerId);
         const open = state.jobs.find(j => j.vehicleId === v.id && !['Teslim edildi', 'İptal'].includes(j.status));
         const due = (v.nextServiceDate && v.nextServiceDate <= today()) || (v.nextServiceKm && v.km >= v.nextServiceKm);
-        return <tr key={v.id} className="row-link" onClick={() => router.push(`/araclar/${v.id}`)}>
+        return <tr key={v.id} className="row-link" onClick={() => router.push(detailHref('/araclar/detay', v.id))}>
           <td><VehicleCell vehicle={v} /></td>
           <td className="hide-sm"><BrandMark brand={v.brand} /></td>
-          <td className="hide-sm">{staffCustomers && owner ? <Link href={`/musteriler/${owner.id}`} onClick={e => e.stopPropagation()}>{owner.name}</Link> : owner?.name}</td>
+          <td className="hide-sm">{staffCustomers && owner ? <Link href={detailHref('/musteriler/detay', owner.id)} onClick={e => e.stopPropagation()}>{owner.name}</Link> : owner?.name}</td>
           <td className="hide-sm">{v.fuel} · {v.transmission}</td>
           <td className={'hide-sm ' + (due ? 'text-bad' : '')}>{v.nextServiceDate ? fmtDate(v.nextServiceDate) : '—'}{v.nextServiceKm && <small className="cell-sub">{v.nextServiceKm.toLocaleString('tr-TR')} km</small>}</td>
           <td>{open ? <Status value={open.status} /> : <span className="muted small">—</span>}</td>

@@ -1,4 +1,5 @@
 'use client';
+import { detailHref } from '@/lib/routes';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/components/store';
@@ -37,7 +38,7 @@ export default function Workshop() {
               const late = j.status !== 'Teslime hazır' && new Date(j.promisedAt).getTime() < Date.now();
               const moves = allowedMoves(j, actor).filter(m => m !== 'İptal');
               return <article key={j.id} className={'board-card ' + (late ? 'late' : '')}>
-                <Link href={`/is-emirleri/${j.id}`} className="board-link">
+                <Link href={detailHref('/is-emirleri/detay', j.id)} className="board-link">
                   <div className="row-between"><span className="mono small strong">{j.no}</span>{j.status === 'Parça bekliyor' ? <span className="tag orange">Parça bekliyor</span> : late ? <span className="tag red">Gecikme</span> : null}</div>
                   {v && <div className="board-vehicle"><Plate value={v.plate} size="sm" /><span>{v.brand} {v.model}</span></div>}
                   <p className="board-complaint">{j.intake.complaint}</p>

@@ -1,4 +1,5 @@
 'use client';
+import { detailHref } from '@/lib/routes';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/components/store';
@@ -42,8 +43,8 @@ export default function PortalHome() {
         <ol className="stepper compact">{steps.map((s, i) => <li key={s} className={i < step ? 'done' : i === step ? 'current' : ''}><span>{i < step ? <Icon name="check" size={11} /> : i + 1}</span>{s}</li>)}</ol>
         <div className="row-between wrap mt">
           <span className="muted small">İş emri {j.no} · tahmini teslim {fmtDateTime(j.promisedAt)}</span>
-          {e?.status === 'Gönderildi' ? <Link className="btn primary" href={`/portal/servis/${j.id}`}>Teklifi incele · {money(estimateTotals(e).total)}<Icon name="arrow" size={14} /></Link>
-            : <Link className="btn" href={`/portal/servis/${j.id}`}>Ayrıntılar<Icon name="arrow" size={14} /></Link>}
+          {e?.status === 'Gönderildi' ? <Link className="btn primary" href={detailHref('/portal/servis', j.id)}>Teklifi incele · {money(estimateTotals(e).total)}<Icon name="arrow" size={14} /></Link>
+            : <Link className="btn" href={detailHref('/portal/servis', j.id)}>Ayrıntılar<Icon name="arrow" size={14} /></Link>}
         </div>
         {j.status === 'Teslime hazır' && balance(j) > 0 && <p className="small mt">Teslimde ödenecek tutar: <b>{money(balance(j))}</b></p>}
       </Card>;
@@ -69,7 +70,7 @@ export default function PortalHome() {
     <Card flush>{past.length ? <table className="table">
       <thead><tr><th>Tarih</th><th>Araç</th><th className="hide-sm">Hizmet</th><th className="num">Tutar</th><th /></tr></thead>
       <tbody>{past.map(j => <tr key={j.id}><td>{fmtDate(j.deliveredAt)}</td><td><Plate value={view.vehicles.find(v => v.id === j.vehicleId)?.plate ?? ''} size="sm" /></td><td className="hide-sm">{serviceName(state, j.serviceId)}</td><td className="num">{money(amountDue(j))}</td>
-        <td className="actions"><div className="btn-row nowrap"><Link className="btn sm" href={`/portal/servis/${j.id}`}>Ayrıntı</Link><Link className="btn sm" href={`/servis-formu/${j.id}`} target="_blank"><Icon name="printer" size={13} />Form</Link></div></td></tr>)}</tbody>
+        <td className="actions"><div className="btn-row nowrap"><Link className="btn sm" href={detailHref('/portal/servis', j.id)}>Ayrıntı</Link><Link className="btn sm" href={detailHref('/servis-formu', j.id)} target="_blank"><Icon name="printer" size={13} />Form</Link></div></td></tr>)}</tbody>
     </table> : <Empty icon="wrench" title="Tamamlanmış servis kaydı yok" />}</Card>
 
     {book !== null && <AppointmentForm open portal preset={{ vehicleId: book || undefined, customerId: actor.customerId }} onClose={() => setBook(null)} />}

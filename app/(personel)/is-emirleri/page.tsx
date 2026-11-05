@@ -1,4 +1,5 @@
 'use client';
+import { detailHref, pagesBasePath } from '@/lib/routes';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/components/store';
@@ -46,6 +47,6 @@ export default function JobsPage() {
       <div className="toolbar-end"><Search value={q} onChange={setQ} placeholder="İş emri, plaka, müşteri, şikâyet" /></div>
     </div>
     <Card flush><JobTable jobs={jobs} /></Card>
-    {intake && <IntakeForm open onClose={() => { setIntake(false); history.replaceState(null, '', '/is-emirleri') }} onDone={id => router.push(`/is-emirleri/${id}`)} />}
+    {intake && <IntakeForm open onClose={() => { setIntake(false); history.replaceState(null, '', pagesBasePath + '/is-emirleri/') }} onDone={id => router.push(detailHref('/is-emirleri/detay', id))} />}
   </>;
 }

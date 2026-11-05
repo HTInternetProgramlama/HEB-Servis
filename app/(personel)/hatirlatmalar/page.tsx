@@ -1,4 +1,5 @@
 'use client';
+import { detailHref } from '@/lib/routes';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/components/store';
@@ -25,7 +26,7 @@ export default function RemindersPage() {
       <tbody>{list.map(r => {
         const c = state.customers.find(c => c.id === r.vehicle.customerId);
         return <tr key={r.vehicle.id}>
-          <td><Link href={`/araclar/${r.vehicle.id}`}><VehicleCell vehicle={r.vehicle} /></Link></td>
+          <td><Link href={detailHref('/araclar/detay', r.vehicle.id)}><VehicleCell vehicle={r.vehicle} /></Link></td>
           <td className="hide-sm">{c?.name}<small className="cell-sub">{c?.phone} · {c?.preference}</small></td>
           <td className={r.overdue ? 'text-bad' : ''}>{r.vehicle.nextServiceDate ? fmtDate(r.vehicle.nextServiceDate) : '—'}
             <small className="cell-sub">{r.daysLeft !== null && (r.daysLeft < 0 ? `${-r.daysLeft} gün geçti` : `${r.daysLeft} gün kaldı`)}{r.kmLeft !== null && ` · ${r.kmLeft < 0 ? `${(-r.kmLeft).toLocaleString('tr-TR')} km aşıldı` : `${r.kmLeft.toLocaleString('tr-TR')} km kaldı`}`}</small></td>

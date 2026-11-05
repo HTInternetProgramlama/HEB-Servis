@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useStore } from '@/components/store';
 import { Loading, Logo } from '@/components/shell';
 import { Icon } from '@/components/icons';
@@ -11,8 +11,12 @@ import { amountDue, amountPaid, approvedEstimate, balance, estimateTotals, lineT
 import { fmtDate, fmtDateTime, km, money, plateText, qtyText } from '@/lib/format';
 
 /** Servis formu: iç notlar, değerlendirmeler ve müşteriye kapalı bulgular yer almaz. */
-export default function ServiceForm() {
-  const { id } = useParams<{ id: string }>();
+export default function Page() {
+  return <Suspense><ServiceForm /></Suspense>;
+}
+
+function ServiceForm() {
+  const id = useSearchParams().get('id');
   const { state, actor, ready } = useStore();
   const router = useRouter();
   const [run, setRun] = useState(0);

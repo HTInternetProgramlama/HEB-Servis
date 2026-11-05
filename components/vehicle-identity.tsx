@@ -1,4 +1,5 @@
 'use client';
+import { pagesBasePath } from '@/lib/routes';
 import { useState } from 'react';
 import Image from 'next/image';
 import { findVehicleMedia } from '@/lib/vehicle-media';
@@ -31,7 +32,7 @@ export function CarDrawing({ vehicle }: { vehicle: Pick<Vehicle, 'brand' | 'mode
   const [failed, setFailed] = useState('');
   if (!media || failed === media.src) return <div className="drawing-missing"><span>{vehicle.brand} {vehicle.model}</span><small>Bu model için çizim bulunmuyor</small></div>;
   return <figure className="drawing">
-    <div className="drawing-crop"><Image className={'drawing-atlas tile-' + media.tile} src={media.src} width={1536} height={1024} alt={media.label + ' — model çizimi'} sizes="(max-width: 700px) 180vw, 640px" onError={() => setFailed(media.src)} /></div>
+    <div className="drawing-crop"><Image className={'drawing-atlas tile-' + media.tile} src={pagesBasePath + media.src} width={1536} height={1024} alt={media.label + ' — model çizimi'} sizes="(max-width: 700px) 180vw, 640px" onError={() => setFailed(media.src)} /></div>
     <figcaption>{media.label} · temsili model çizimi</figcaption>
   </figure>;
 }

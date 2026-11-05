@@ -1,4 +1,5 @@
 'use client';
+import { detailHref } from '@/lib/routes';
 import Link from 'next/link';
 import { useApp } from './store';
 import { Empty, Status } from './ui';
@@ -15,7 +16,7 @@ export function JobTable({ jobs }: { jobs: Job[] }) {
     <tbody>{jobs.map(j => {
       const late = !['Teslime hazır', 'Teslim edildi', 'İptal'].includes(j.status) && new Date(j.promisedAt).getTime() < Date.now();
       return <tr key={j.id} className="row-link">
-        <td><Link href={`/is-emirleri/${j.id}`} className="mono strong">{j.no}</Link><small className="cell-sub">{serviceName(state, j.serviceId)}</small></td>
+        <td><Link href={detailHref('/is-emirleri/detay', j.id)} className="mono strong">{j.no}</Link><small className="cell-sub">{serviceName(state, j.serviceId)}</small></td>
         <td><VehicleCell vehicle={state.vehicles.find(v => v.id === j.vehicleId)} /></td>
         <td className="hide-sm">{state.customers.find(c => c.id === j.customerId)?.name}</td>
         <td className="hide-sm">{staffName(state, j.technicianId)}</td>

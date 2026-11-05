@@ -1,3 +1,4 @@
+import { detailHref, pagesBasePath } from '@/lib/routes';
 import type { Customer, Estimate, Job, Payment, State, Vehicle } from './types';
 import { amountDue, balance, estimateTotals } from './rules';
 import { fmtDate, fmtDateTime, km, money, plateText } from './format';
@@ -33,7 +34,7 @@ export function receiptMessage(state: State, job: Job, p: Payment, origin: strin
     `Tarih: ${fmtDateTime(p.at)}`,
     `Kalan bakiye: ${money(balance(job))}`,
     '',
-    `Servis kaydınız: ${origin}/portal/servis/${job.id}`,
+    `Servis kaydınız: ${origin}${pagesBasePath}${detailHref('/portal/servis', job.id)}`,
     `${co.name} · ${co.phone}`,
   ].join('\n');
 }
@@ -51,7 +52,7 @@ export function serviceFormMessage(state: State, job: Job, origin: string) {
     `Onaylı tutar: ${money(amountDue(job))}`,
     v.nextServiceDate ? `Sonraki bakım: ${fmtDate(v.nextServiceDate)}${v.nextServiceKm ? ` veya ${km(v.nextServiceKm)}` : ''}` : '',
     '',
-    `Servis formu: ${origin}/servis-formu/${job.id}`,
+    `Servis formu: ${origin}${pagesBasePath}${detailHref('/servis-formu', job.id)}`,
     `${co.name} · ${co.phone}`,
   ].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
 }
@@ -67,7 +68,7 @@ export function estimateMessage(state: State, job: Job, e: Estimate, origin: str
     '',
     `Toplam (KDV dahil): ${money(t.total)}`,
     '',
-    `Onay veya ret için: ${origin}/portal/servis/${job.id}`,
+    `Onay veya ret için: ${origin}${pagesBasePath}${detailHref('/portal/servis', job.id)}`,
     `Sorularınız için: ${co.phone}`,
   ].join('\n');
 }

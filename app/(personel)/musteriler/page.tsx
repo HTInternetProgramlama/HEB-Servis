@@ -1,4 +1,5 @@
 'use client';
+import { detailHref } from '@/lib/routes';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -31,8 +32,8 @@ export default function CustomersPage() {
     <Card flush>
       {rows.length ? <div className="table-wrap"><table className="table">
         <thead><tr><th>Müşteri</th><th className="hide-sm">Telefon</th><th className="num">Araç</th><th className="num hide-sm">Ziyaret</th><th className="hide-sm">Son ziyaret</th><th className="hide-sm">Değerlendirme</th><th className="num">Açık bakiye</th></tr></thead>
-        <tbody>{rows.map(({ c, vehicles, visits, last, open, score }) => <tr key={c.id} className="row-link" onClick={() => router.push(`/musteriler/${c.id}`)}>
-          <td><Link href={`/musteriler/${c.id}`} className="strong" onClick={e => e.stopPropagation()}>{c.name}</Link><small className="cell-sub">{c.no} · {c.kind}</small></td>
+        <tbody>{rows.map(({ c, vehicles, visits, last, open, score }) => <tr key={c.id} className="row-link" onClick={() => router.push(detailHref('/musteriler/detay', c.id))}>
+          <td><Link href={detailHref('/musteriler/detay', c.id)} className="strong" onClick={e => e.stopPropagation()}>{c.name}</Link><small className="cell-sub">{c.no} · {c.kind}</small></td>
           <td className="hide-sm">{c.phone}</td><td className="num">{vehicles}</td><td className="num hide-sm">{visits}</td>
           <td className="hide-sm">{last ? fmtDate(last) : '—'}</td>
           <td className="hide-sm">{score ? <Score value={score.overall} /> : <span className="muted small">Değerlendirme yok</span>}</td>
@@ -40,6 +41,6 @@ export default function CustomersPage() {
         </tr>)}</tbody>
       </table></div> : <Empty icon="users" title="Müşteri bulunamadı" />}
     </Card>
-    {form && <CustomerForm open onClose={() => setForm(false)} onSaved={id => router.push(`/musteriler/${id}`)} />}
+    {form && <CustomerForm open onClose={() => setForm(false)} onSaved={id => router.push(detailHref('/musteriler/detay', id))} />}
   </>;
 }

@@ -1,4 +1,5 @@
 'use client';
+import { detailHref } from '@/lib/routes';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -110,7 +111,7 @@ export default function AppointmentsPage() {
     </div>
 
     {form && <AppointmentForm open onClose={() => setForm(null)} preset={form.preset} editing={form.editing} />}
-    {intake && <IntakeForm open appointment={intake} onClose={() => setIntake(null)} onDone={id => router.push(`/is-emirleri/${id}`)} />}
+    {intake && <IntakeForm open appointment={intake} onClose={() => setIntake(null)} onDone={id => router.push(detailHref('/is-emirleri/detay', id))} />}
   </>;
 }
 
@@ -122,7 +123,7 @@ function AppointmentDetail({ a, onClose, onEdit, onIntake }: { a: Appointment; o
   return <Card title={<>Randevu <span className="mono">{a.no}</span></>} actions={<button className="icon-btn" aria-label="Kapat" onClick={onClose}><Icon name="x" size={15} /></button>}>
     <div className="stack">
       <div className="row-between"><VehicleCell vehicle={veh} /><Status value={a.status} /></div>
-      <KV items={[['Müşteri', cus ? <Link href={`/musteriler/${cus.id}`}>{cus.name}</Link> : '—'], ['Telefon', cus?.phone ?? '—'], ['Hizmet', serviceName(state, a.serviceId)], ['Alan', resourceName(state, a.resourceId)], ['Zaman', `${fmtDate(a.date)} ${a.time} · ${a.duration} dk`], ['Kanal', a.source], ['Oluşturan', `${a.createdBy} · ${fmtDateTime(a.createdAt)}`]]} />
+      <KV items={[['Müşteri', cus ? <Link href={detailHref('/musteriler/detay', cus.id)}>{cus.name}</Link> : '—'], ['Telefon', cus?.phone ?? '—'], ['Hizmet', serviceName(state, a.serviceId)], ['Alan', resourceName(state, a.resourceId)], ['Zaman', `${fmtDate(a.date)} ${a.time} · ${a.duration} dk`], ['Kanal', a.source], ['Oluşturan', `${a.createdBy} · ${fmtDateTime(a.createdAt)}`]]} />
       {a.note && <p className="quote">{a.note}</p>}
       <div className="btn-row">
         {a.status === 'Bekliyor' && <Button variant="primary" onClick={() => run((s, ac) => confirmAppointment(s, ac, a.id), `${a.no} onaylandı`, a.no)}>Onayla</Button>}
@@ -134,7 +135,7 @@ function AppointmentDetail({ a, onClose, onEdit, onIntake }: { a: Appointment; o
           <Button icon="edit" onClick={onEdit}>Değiştir</Button>
           <Button variant="ghost" onClick={() => { if (confirm('Randevu iptal edilsin mi?')) run((s, ac) => setAppointmentStatus(s, ac, a.id, 'İptal'), `${a.no} iptal edildi`, a.no) }}>İptal et</Button>
         </>}
-        {job && <Link className="btn" href={`/is-emirleri/${job.id}`}>İş emri {job.no}</Link>}
+        {job && <Link className="btn" href={detailHref('/is-emirleri/detay', job.id)}>İş emri {job.no}</Link>}
       </div>
     </div>
     <Modal open={confirmNoShow} onClose={() => setConfirmNoShow(false)} title="Gelmedi olarak işaretle" width={420}

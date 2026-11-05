@@ -1,4 +1,5 @@
 'use client';
+import { detailHref } from '@/lib/routes';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -122,10 +123,10 @@ function GlobalSearch() {
   if (term.length >= 2) {
     for (const j of state.jobs) {
       const v = state.vehicles.find(v => v.id === j.vehicleId);
-      if (fold(j.no).includes(term) || (v && normalizePlate(v.plate).includes(plate))) results.push({ href: `/is-emirleri/${j.id}`, title: j.no, sub: `${v ? v.brand + ' ' + v.model : ''} · ${j.status}`, kind: 'İş emri' });
+      if (fold(j.no).includes(term) || (v && normalizePlate(v.plate).includes(plate))) results.push({ href: detailHref('/is-emirleri/detay', j.id), title: j.no, sub: `${v ? v.brand + ' ' + v.model : ''} · ${j.status}`, kind: 'İş emri' });
     }
-    for (const v of state.vehicles) if (normalizePlate(v.plate).includes(plate) || fold(v.brand + ' ' + v.model).includes(term) || v.vin.toLowerCase().includes(term)) results.push({ href: `/araclar/${v.id}`, title: <Plate value={v.plate} size="sm" />, sub: `${v.brand} ${v.model} · ${v.year}`, kind: 'Araç' });
-    if (can(actor, 'customer.write')) for (const c of state.customers) if (fold(c.name).includes(term) || c.phone.replace(/\D/g, '').includes(q.replace(/\D/g, '') || '#') || fold(c.no).includes(term)) results.push({ href: `/musteriler/${c.id}`, title: c.name, sub: `${c.no} · ${c.phone}`, kind: 'Müşteri' });
+    for (const v of state.vehicles) if (normalizePlate(v.plate).includes(plate) || fold(v.brand + ' ' + v.model).includes(term) || v.vin.toLowerCase().includes(term)) results.push({ href: detailHref('/araclar/detay', v.id), title: <Plate value={v.plate} size="sm" />, sub: `${v.brand} ${v.model} · ${v.year}`, kind: 'Araç' });
+    if (can(actor, 'customer.write')) for (const c of state.customers) if (fold(c.name).includes(term) || c.phone.replace(/\D/g, '').includes(q.replace(/\D/g, '') || '#') || fold(c.no).includes(term)) results.push({ href: detailHref('/musteriler/detay', c.id), title: c.name, sub: `${c.no} · ${c.phone}`, kind: 'Müşteri' });
   }
   const shown = results.slice(0, 9);
   return <div className="global-search" ref={box}>

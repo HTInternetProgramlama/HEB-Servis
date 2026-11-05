@@ -1,7 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { detailHref } from '@/lib/routes';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/components/store';
 import { Button, Card, Empty, KV, Modal, Status } from '@/components/ui';
 import { Icon } from '@/components/icons';
@@ -9,8 +10,12 @@ import { Plate } from '@/components/vehicle-identity';
 import { amountDue, amountPaid, balance, decideEstimate, estimateTotals, lineTotals, portalView } from '@/lib/rules';
 import { fmtDateTime, km, money, qtyText } from '@/lib/format';
 
-export default function PortalJob() {
-  const { id } = useParams<{ id: string }>();
+export default function Page() {
+  return <Suspense><PortalJob /></Suspense>;
+}
+
+function PortalJob() {
+  const id = useSearchParams().get('id');
   const { state, actor, run } = useApp();
   const [confirm, setConfirm] = useState<null | 'Onaylandı' | 'Reddedildi'>(null);
   const view = portalView(state, actor);
@@ -51,7 +56,7 @@ export default function PortalJob() {
           <div className="total"><dt>Kalan</dt><dd>{money(balance(job))}</dd></div>
         </dl>
         <p className="small muted mt">Ödemeler serviste nakit, kart veya havale ile alınır.</p>
-        {job.status === 'Teslim edildi' && <Link className="btn mt" href={`/servis-formu/${job.id}`} target="_blank"><Icon name="printer" size={14} />Servis formunu yazdır</Link>}
+        {job.status === 'Teslim edildi' && <Link className="btn mt" href={detailHref('/servis-formu', job.id)} target="_blank"><Icon name="printer" size={14} />Servis formunu yazdır</Link>}
       </Card>
     </div>
     <Card title="Kabul bilgileri">

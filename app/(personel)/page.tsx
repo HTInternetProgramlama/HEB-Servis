@@ -1,4 +1,5 @@
 'use client';
+import { detailHref } from '@/lib/routes';
 import Link from 'next/link';
 import { useApp } from '@/components/store';
 import { Card, Empty, PageHeader, Stat, Status } from '@/components/ui';
@@ -44,10 +45,10 @@ export default function Overview() {
   const ready = state.jobs.filter(j => j.status === 'Teslime hazır');
 
   const alerts: { tone: 'bad' | 'warn'; text: React.ReactNode; href: string }[] = [
-    ...open.filter(overdue).map(j => ({ tone: 'bad' as const, text: <><b>{j.no}</b> tahmini teslim süresi geçti ({fmtDate(j.promisedAt)} {fmtTime(j.promisedAt)})</>, href: `/is-emirleri/${j.id}` })),
+    ...open.filter(overdue).map(j => ({ tone: 'bad' as const, text: <><b>{j.no}</b> tahmini teslim süresi geçti ({fmtDate(j.promisedAt)} {fmtTime(j.promisedAt)})</>, href: detailHref('/is-emirleri/detay', j.id) })),
     ...state.appointments.filter(a => a.status === 'Bekliyor').map(a => ({ tone: 'warn' as const, text: <><b>{a.no}</b> randevu talebi onay bekliyor · {fmtDate(a.date)} {a.time}</>, href: '/randevular?tarih=' + a.date })),
-    ...open.flatMap(j => j.inspections.filter(i => i.result === 'Acil').length && latestEstimate(j)?.status !== 'Onaylandı' ? [{ tone: 'bad' as const, text: <><b>{j.no}</b> acil bulgu var: {j.inspections.find(i => i.result === 'Acil')!.item}</>, href: `/is-emirleri/${j.id}` }] : []),
-    ...open.filter(j => j.status === 'Parça bekliyor').map(j => ({ tone: 'warn' as const, text: <><b>{j.no}</b> parça bekliyor</>, href: `/is-emirleri/${j.id}` })),
+    ...open.flatMap(j => j.inspections.filter(i => i.result === 'Acil').length && latestEstimate(j)?.status !== 'Onaylandı' ? [{ tone: 'bad' as const, text: <><b>{j.no}</b> acil bulgu var: {j.inspections.find(i => i.result === 'Acil')!.item}</>, href: detailHref('/is-emirleri/detay', j.id) }] : []),
+    ...open.filter(j => j.status === 'Parça bekliyor').map(j => ({ tone: 'warn' as const, text: <><b>{j.no}</b> parça bekliyor</>, href: detailHref('/is-emirleri/detay', j.id) })),
   ];
 
   const days = Array.from({ length: 14 }, (_, i) => addDays(day, i - 13));

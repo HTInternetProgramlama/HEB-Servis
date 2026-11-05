@@ -1,7 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { detailHref } from '@/lib/routes';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useApp } from '@/components/store';
 import { Button, Card, Empty, Field, FormError, KV, Modal, PageHeader, Status, Tabs, useFormRunner } from '@/components/ui';
 import { Icon } from '@/components/icons';
@@ -21,8 +22,12 @@ import type { Channel, Estimate, InspectionResult, Job, JobStatus } from '@/lib/
 type Tab = 'overview' | 'inspection' | 'estimate' | 'payments' | 'history';
 const flow: JobStatus[] = ['Kabul edildi', 'İnceleniyor', 'Onay bekliyor', 'İşlemde', 'Son kontrol', 'Teslime hazır', 'Teslim edildi'];
 
-export default function JobDetail() {
-  const { id } = useParams<{ id: string }>();
+export default function Page() {
+  return <Suspense><JobDetail /></Suspense>;
+}
+
+function JobDetail() {
+  const id = useSearchParams().get('id');
   const { state, actor, run } = useApp();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('overview');
@@ -53,7 +58,7 @@ export default function JobDetail() {
         {job.status === 'Teslime hazır' && can(actor, 'payment.write') && <Button variant="primary" icon="check" onClick={() => setModal('deliver')}>Teslim et</Button>}
         {showMoney && balance(job) > 0 && <Button icon="wallet" onClick={() => setModal('payment')}>Tahsilat</Button>}
         {job.status === 'Teslim edildi' && can(actor, 'evaluation.write') && <Button icon="star" onClick={() => setModal('evaluate')}>Ziyareti değerlendir</Button>}
-        <Link className="btn" href={`/servis-formu/${job.id}`} target="_blank"><Icon name="printer" size={15} />Servis formu</Link>
+        <Link className="btn" href={detailHref('/servis-formu', job.id)} target="_blank"><Icon name="printer" size={15} />Servis formu</Link>
         {moves.includes('İptal') && <Button variant="ghost" onClick={() => setModal('cancel')}>İptal et</Button>}
       </>} />
 
@@ -75,11 +80,11 @@ export default function JobDetail() {
       <aside className="detail-side">
         <Card title="Araç">
           <CarDrawing vehicle={vehicle} />
-          <div className="row-between mt"><Plate value={vehicle.plate} /><Link href={`/araclar/${vehicle.id}`} className="btn sm link">Araç dosyası</Link></div>
+          <div className="row-between mt"><Plate value={vehicle.plate} /><Link href={detailHref('/araclar/detay', vehicle.id)} className="btn sm link">Araç dosyası</Link></div>
           <KV items={[['Model', `${vehicle.brand} ${vehicle.model} · ${vehicle.year}`], ['Kabul km', km(job.intake.km)], ['Yakıt / vites', `${vehicle.fuel} · ${vehicle.transmission}`], ['Şasi', <span className="mono small" key="v">{vehicle.vin || '—'}</span>]]} />
         </Card>
         <Card title="Müşteri">
-          <KV cols={1} items={[['Ad / unvan', can(actor, 'customer.write') ? <Link href={`/musteriler/${customer.id}`}>{customer.name}</Link> : customer.name], ['Telefon', <a key="p" href={`tel:${customer.phone.replace(/\s/g, '')}`}>{customer.phone}</a>], ['İletişim tercihi', customer.preference]]} />
+          <KV cols={1} items={[['Ad / unvan', can(actor, 'customer.write') ? <Link href={detailHref('/musteriler/detay', customer.id)}>{customer.name}</Link> : customer.name], ['Telefon', <a key="p" href={`tel:${customer.phone.replace(/\s/g, '')}`}>{customer.phone}</a>], ['İletişim tercihi', customer.preference]]} />
           {can(actor, 'note.read') && state.notes.filter(n => n.customerId === customer.id).slice(-2).map(n => <div key={n.id} className="inner-note"><Icon name="lock" size={12} /><div><b>{n.category}</b> {n.text}</div></div>)}
         </Card>
         <Card title="Sorumlular">
@@ -99,7 +104,7 @@ export default function JobDetail() {
     </div>
 
     {modal === 'payment' && <PaymentForm open job={job} onClose={() => setModal('')} />}
-    {modal === 'deliver' && <DeliveryForm open job={job} onClose={() => setModal('')} onDone={() => router.push(`/servis-formu/${job.id}`)} />}
+    {modal === 'deliver' && <DeliveryForm open job={job} onClose={() => setModal('')} onDone={() => router.push(detailHref('/servis-formu', job.id))} />}
     {modal === 'evaluate' && <EvaluationForm open job={job} onClose={() => setModal('')} />}
     {(modal === 'cancel' || modal === 'move') && <ReasonModal title={modal === 'cancel' ? 'İş emrini iptal et' : 'Parça bekliyor'} label={modal === 'cancel' ? 'İptal gerekçesi' : 'Beklenen parça / tedarikçi'} required={modal === 'cancel'}
       onClose={() => setModal('')} onSubmit={note => run((s, a) => moveJob(s, a, job.id, modal === 'cancel' ? 'İptal' : pendingMove!, note), `${job.no} → ${modal === 'cancel' ? 'İptal' : pendingMove}`, job.no)} />}

@@ -1,4 +1,5 @@
 'use client';
+import { detailHref } from '@/lib/routes';
 import Link from 'next/link';
 import { useApp } from '@/components/store';
 import { Card, Empty, PageHeader, Status } from '@/components/ui';
@@ -17,7 +18,7 @@ export default function EstimatesPage() {
   const Table = ({ list, mode }: { list: typeof rows; mode: 'wait' | 'draft' | 'done' }) => <div className="table-wrap"><table className="table">
     <thead><tr><th>İş emri</th><th>Araç</th><th className="hide-sm">Müşteri</th><th>Sürüm</th><th className="hide-sm">{mode === 'wait' ? 'Gönderim' : mode === 'draft' ? 'Oluşturma' : 'Karar'}</th><th className="num">Toplam</th></tr></thead>
     <tbody>{list.map(({ j, e }) => <tr key={e.id}>
-      <td><Link className="mono strong" href={`/is-emirleri/${j.id}`}>{j.no}</Link></td>
+      <td><Link className="mono strong" href={detailHref('/is-emirleri/detay', j.id)}>{j.no}</Link></td>
       <td><VehicleCell vehicle={state.vehicles.find(v => v.id === j.vehicleId)} /></td>
       <td className="hide-sm">{state.customers.find(c => c.id === j.customerId)?.name}<small className="cell-sub">{state.customers.find(c => c.id === j.customerId)?.phone}</small></td>
       <td>v{e.version} <Status value={e.status} /></td>

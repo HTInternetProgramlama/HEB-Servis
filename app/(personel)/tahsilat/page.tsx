@@ -1,4 +1,5 @@
 'use client';
+import { detailHref } from '@/lib/routes';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/components/store';
@@ -36,7 +37,7 @@ export default function PaymentsPage() {
           const c = state.customers.find(c => c.id === j.customerId);
           const age = j.deliveredAt ? daysBetween(isoDay(j.deliveredAt), today()) : null;
           return <tr key={j.id}>
-            <td><Link className="mono strong" href={`/is-emirleri/${j.id}`}>{j.no}</Link></td>
+            <td><Link className="mono strong" href={detailHref('/is-emirleri/detay', j.id)}>{j.no}</Link></td>
             <td><VehicleCell vehicle={state.vehicles.find(v => v.id === j.vehicleId)} /></td>
             <td className="hide-sm">{c?.name}<small className="cell-sub">{c?.phone}</small></td>
             <td className="hide-sm">{j.status}{age !== null && <small className="cell-sub text-bad">Teslimden {age} gün sonra açık</small>}</td>
@@ -49,7 +50,7 @@ export default function PaymentsPage() {
     <Card title="Tahsilat hareketleri" sub={`${fmtDate(from)} – ${fmtDate(to)}`} flush>
       {payments.length ? <div className="table-wrap"><table className="table">
         <thead><tr><th>Tarih</th><th>İş emri</th><th className="hide-sm">Müşteri</th><th>Yöntem</th><th className="hide-sm">Kaydeden</th><th className="num">Tutar</th></tr></thead>
-        <tbody>{payments.map(({ p, j }) => <tr key={p.id}><td>{fmtDateTime(p.at)}</td><td><Link className="mono" href={`/is-emirleri/${j.id}`}>{j.no}</Link></td><td className="hide-sm">{state.customers.find(c => c.id === j.customerId)?.name}</td><td>{p.method}{p.note && <small className="cell-sub">{p.note}</small>}</td><td className="hide-sm">{p.by}</td><td className="num strong">{money(p.amount)}</td></tr>)}</tbody>
+        <tbody>{payments.map(({ p, j }) => <tr key={p.id}><td>{fmtDateTime(p.at)}</td><td><Link className="mono" href={detailHref('/is-emirleri/detay', j.id)}>{j.no}</Link></td><td className="hide-sm">{state.customers.find(c => c.id === j.customerId)?.name}</td><td>{p.method}{p.note && <small className="cell-sub">{p.note}</small>}</td><td className="hide-sm">{p.by}</td><td className="num strong">{money(p.amount)}</td></tr>)}</tbody>
         <tfoot><tr><td colSpan={5}>Toplam</td><td className="num strong">{money(total)}</td></tr></tfoot>
       </table></div> : <Empty icon="wallet" title="Bu aralıkta tahsilat yok" />}
     </Card>
