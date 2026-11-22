@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useApp } from '@/components/store';
 import { Button, Card, Empty, Field, FormError, Modal, PageHeader, Search, useFormRunner } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import { can, upsertCatalog } from '@/lib/rules';
+import { can, upsertCatalog } from '@/lib/commands';
 import { fold, money, moneyInput, parseMoney } from '@/lib/format';
 import type { CatalogItem, LineKind } from '@/lib/types';
 

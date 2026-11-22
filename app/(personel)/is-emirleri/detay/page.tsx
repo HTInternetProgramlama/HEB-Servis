@@ -1,5 +1,6 @@
 'use client';
 import { detailHref } from '@/lib/routes';
+import { InspectionPhoto } from '@/components/inspection-photo';
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -14,7 +15,7 @@ import { DamageMap, DeliveryForm, EvaluationForm, FuelGauge, LineForm } from '@/
 import {
   addInspection, allowedMoves, amountDue, amountPaid, approvedEstimate, balance, can, createEstimateDraft, decideEstimate, estimateTotals,
   latestEstimate, lineTotals, moveJob, reassignJob, removeLine, sendEstimate, serviceName, setEstimateNote, staffName, technicians, toggleInspectionVisibility,
-} from '@/lib/rules';
+} from '@/lib/commands';
 import { generateTechnicalDraft, type Suggestion } from '@/lib/advisor';
 import { fmtDate, fmtDateTime, km, money, qtyText } from '@/lib/format';
 import type { Channel, Estimate, InspectionResult, Job, JobStatus } from '@/lib/types';
@@ -164,7 +165,7 @@ function Inspections({ job }: { job: Job }) {
       {job.inspections.length ? <table className="table">
         <thead><tr><th>Kontrol maddesi</th><th>Sonuç</th><th className="hide-sm">Açıklama</th><th className="hide-sm">Kaydeden</th><th>Müşteri</th></tr></thead>
         <tbody>{job.inspections.map(i => <tr key={i.id}>
-          <td><strong>{i.item}</strong>{i.source === 'Ön değerlendirme' && <small className="cell-sub">Ön değerlendirmeden</small>}</td>
+          <td><strong>{i.item}</strong><InspectionPhoto id={i.id} hasPhoto={!!i.photoPath} writable={writable} />{i.source === 'Ön değerlendirme' && <small className="cell-sub">Ön değerlendirmeden</small>}</td>
           <td><Status value={i.result} /></td>
           <td className="hide-sm small">{i.note || '—'}</td>
           <td className="hide-sm small">{i.by}<small className="cell-sub">{fmtDateTime(i.at)}</small></td>

@@ -4,7 +4,7 @@ import { useApp } from './store';
 import { Button, Field, FormError, Modal } from './ui';
 import { Icon } from './icons';
 import { ShareSheet } from './share-sheet';
-import { balance, recordPayment } from '@/lib/rules';
+import { balance, recordPayment } from '@/lib/commands';
 import { money, moneyInput, parseMoney, plateText, uid } from '@/lib/format';
 import { receiptMessage } from '@/lib/share';
 import type { Job, PaymentMethod } from '@/lib/types';

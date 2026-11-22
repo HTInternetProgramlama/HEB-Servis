@@ -80,6 +80,7 @@ export function addCustomer(state: State, actor: Actor, input: CustomerInput, cl
 export function updateCustomer(state: State, actor: Actor, id: string, input: CustomerInput): State {
   need(actor, 'customer.write'); validateCustomer(input);
   ensure(state.customers.some(c => c.id === id), 'Müşteri bulunamadı.');
+  ensure(!state.customers.some(c => c.id !== id && c.phone.replace(/\D/g, '') === input.phone.replace(/\D/g, '')), 'Bu telefon numarasıyla kayıtlı bir müşteri var.');
   return { ...state, customers: state.customers.map(c => c.id === id ? { ...c, ...input, name: input.name.trim(), phone: input.phone.trim() } : c) };
 }
 
@@ -467,12 +468,15 @@ export function updateSettings(state: State, actor: Actor, settings: Settings): 
   ensure(minutes(s.workStart) < minutes(s.breakStart) && minutes(s.breakStart) < minutes(s.breakEnd) && minutes(s.breakEnd) < minutes(s.workEnd), 'Çalışma ve mola saatleri sıralı olmalı.');
   ensure(s.workDays.length > 0, 'En az bir çalışma günü seçin.');
   ensure(Number.isInteger(s.vatRate) && s.vatRate >= 0 && s.vatRate <= 50, 'KDV oranı 0–50 arası tam sayı olmalı.');
+  ensure(Number.isInteger(s.serviceIntervalKm) && s.serviceIntervalKm >= 1000 && s.serviceIntervalKm <= 100000, 'Bakım aralığı 1.000–100.000 km olmalı.');
+  ensure(Number.isInteger(s.serviceIntervalMonths) && s.serviceIntervalMonths >= 1 && s.serviceIntervalMonths <= 36, 'Bakım aralığı 1–36 ay olmalı.');
   ensure(s.resources.some(r => r.active), 'En az bir aktif servis alanı olmalı.');
   ensure(s.services.every(x => x.name.trim() && x.duration >= 15 && x.duration <= 480), 'Hizmet adları ve süreleri (15–480 dk) geçerli olmalı.');
   return { ...state, settings: s };
 }
 export function upsertUser(state: State, actor: Actor, input: Omit<User, 'id'>, id?: string): State {
   need(actor, 'staff.write');
+  ensure(['admin', 'advisor', 'technician', 'customer'].includes(input.role), 'Geçerli bir rol seçin.');
   ensure(input.name.trim().length >= 3, 'Ad soyad zorunlu.');
   ensure(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email), 'Geçerli e-posta girin.');
   ensure(!state.users.some(u => u.id !== id && u.email.toLowerCase() === input.email.toLowerCase()), 'Bu e-posta başka bir kullanıcıda kayıtlı.');

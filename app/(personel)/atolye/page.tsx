@@ -6,7 +6,7 @@ import { useApp } from '@/components/store';
 import { PageHeader } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { Plate } from '@/components/vehicle-identity';
-import { allowedMoves, moveJob, serviceName, staffName, technicians } from '@/lib/rules';
+import { allowedMoves, moveJob, serviceName, staffName, technicians } from '@/lib/commands';
 import { fmtTime, isoDay, today } from '@/lib/format';
 import type { JobStatus } from '@/lib/types';
 

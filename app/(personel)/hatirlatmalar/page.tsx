@@ -6,7 +6,7 @@ import { useApp } from '@/components/store';
 import { Button, Card, Empty, Field, FormError, Modal, PageHeader, useFormRunner } from '@/components/ui';
 import { VehicleCell } from '@/components/vehicle-identity';
 import { AppointmentForm } from '@/components/forms';
-import { dueReminders, logReminder } from '@/lib/rules';
+import { dueReminders, logReminder } from '@/lib/commands';
 import { fmtDate, fmtDateTime } from '@/lib/format';
 import type { ReminderResult, Vehicle } from '@/lib/types';
 

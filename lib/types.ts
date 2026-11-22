@@ -78,6 +78,7 @@ export interface Intake {
 export type InspectionResult = 'Uygun' | 'Takip edilmeli' | 'Acil';
 export interface Inspection {
   id: string; item: string; result: InspectionResult; note: string; customerVisible: boolean;
+  photoPath?: string;
   source: 'Teknisyen' | 'Ön değerlendirme'; at: string; by: string;
 }
 

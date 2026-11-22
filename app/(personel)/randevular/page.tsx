@@ -8,7 +8,7 @@ import { Button, Card, Empty, KV, Modal, PageHeader, Status } from '@/components
 import { Icon } from '@/components/icons';
 import { Plate, VehicleCell } from '@/components/vehicle-identity';
 import { AppointmentForm, IntakeForm } from '@/components/forms';
-import { confirmAppointment, findClash, resourceName, serviceName, setAppointmentStatus } from '@/lib/rules';
+import { confirmAppointment, findClash, resourceName, serviceName, setAppointmentStatus } from '@/lib/commands';
 import { addDays, fmtDate, fmtDateTime, fmtLongDate, hhmm, minutes, today, weekday } from '@/lib/format';
 import type { Appointment } from '@/lib/types';
 

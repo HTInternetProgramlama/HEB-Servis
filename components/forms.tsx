@@ -6,7 +6,7 @@ import { Icon } from './icons';
 import {
   addCustomer, addNote, addVehicle, balance, deliverJob, evaluateVisit, openJob, recordPayment, requestAppointment,
   rescheduleAppointment, suggestedNextService, technicians, updateCustomer, updateVehicle, upsertLine, type CustomerInput, type VehicleInput,
-} from '@/lib/rules';
+} from '@/lib/commands';
 import { addDays, hhmm, minutes, money, moneyInput, parseMoney, parseQty, qtyText, today, uid } from '@/lib/format';
 import type { Appointment, Customer, Damage, DamageKind, EstimateLine, Job, NoteCategory, PaymentMethod, Vehicle } from '@/lib/types';
 

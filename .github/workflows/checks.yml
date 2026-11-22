@@ -1,0 +1,34 @@
+name: Project checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx supabase start > /tmp/heb-supabase.log 2>&1
+      - run: npm run test:local-env
+      - run: npm run test:integration
+        env:
+          HEB_ENV_FILE: .env.test.local
+      - run: npm run test:http
+        env:
+          HEB_ENV_FILE: .env.test.local
+      - run: npm run test:backup
+        env:
+          HEB_ENV_FILE: .env.test.local

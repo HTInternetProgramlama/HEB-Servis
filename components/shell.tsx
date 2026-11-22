@@ -86,7 +86,7 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
       </nav>
       <div className="side-foot">
         <div className="side-user"><Avatar name={actor.name} size={30} /><div><strong>{actor.name}</strong><small>{roleLabel[actor.role]}</small></div>
-          <button className="icon-btn dark" onClick={() => { logout(); router.replace('/giris') }} aria-label="Oturumu kapat" title="Oturumu kapat"><Icon name="logout" size={16} /></button></div>
+          <button className="icon-btn dark" onClick={async () => { await logout(); router.replace('/giris') }} aria-label="Oturumu kapat" title="Oturumu kapat"><Icon name="logout" size={16} /></button></div>
       </div>
     </aside>
     <button className="scrim" aria-label="Menüyü kapat" onClick={() => setMenu(false)} />
@@ -96,7 +96,7 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
         <GlobalSearch />
         <div className="top-right">
           <span className="top-date">{fmtLongDate(today())}</span>
-          <span className="env-chip" title="Veriler yalnız bu tarayıcıda saklanır; sunucu ve gerçek kimlik doğrulama bağlı değildir.">Yerel demo</span>
+          <span className="env-chip" title="Veriler PostgreSQL veritabanında saklanır; oturumlar Supabase Auth ile doğrulanır.">Sunucu bağlı</span>
         </div>
       </header>
       {loadError && <div className="banner warn"><Icon name="alert" size={15} />{loadError}</div>}

@@ -8,7 +8,7 @@ import { Button, Card, Empty, KV, PageHeader, Score, Stat, Status, Tabs } from '
 import { Icon } from '@/components/icons';
 import { VehicleCell } from '@/components/vehicle-identity';
 import { AppointmentForm, CustomerForm, EvaluationForm, NoteForm, VehicleForm } from '@/components/forms';
-import { amountDue, amountPaid, balance, can, customerScore, editNote, resourceName, serviceName } from '@/lib/rules';
+import { amountDue, amountPaid, balance, can, customerScore, editNote, resourceName, serviceName } from '@/lib/commands';
 import { fmtDate, fmtDateTime, money } from '@/lib/format';
 import type { Job } from '@/lib/types';
 

@@ -3,14 +3,14 @@ import { useState } from 'react';
 import { useApp } from '@/components/store';
 import { Button, Card, Empty, Field, FormError, Modal, PageHeader, Status, Tabs, useFormRunner } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import { can, roleLabel, updateSettings, upsertUser } from '@/lib/rules';
+import { can, roleLabel, updateSettings, upsertUser } from '@/lib/commands';
 import { uid } from '@/lib/format';
 import type { Resource, Role, ServiceType, Settings, User } from '@/lib/types';
 
 const dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
 export default function SettingsPage() {
-  const { state, actor, run, resetDemo } = useApp();
+  const { state, actor, run } = useApp();
   const [tab, setTab] = useState<'company' | 'hours' | 'staff' | 'data'>('company');
   const [s, setS] = useState<Settings>(state.settings);
   const [user, setUser] = useState<null | { u?: User }>(null);
@@ -69,10 +69,10 @@ export default function SettingsPage() {
         <tbody>{state.users.map(u => <tr key={u.id} className={u.active ? '' : 'dim'}><td>{u.name}</td><td className="hide-sm">{u.email}</td><td>{roleLabel[u.role]}</td><td className="hide-sm">{state.customers.find(c => c.id === u.customerId)?.name ?? '—'}</td><td><Status value={u.active ? 'Aktif' : 'Pasif'} tone={u.active ? 'green' : 'muted'} /></td>
           <td className="actions"><button className="icon-btn" aria-label="Düzenle" onClick={() => setUser({ u })}><Icon name="edit" size={14} /></button></td></tr>)}</tbody></table></div>
     </Card>}
-    {tab === 'data' && <Card title="Yerel veri">
-      <p>Bu sürümde kayıtlar yalnız bu tarayıcının yerel depolamasında tutulur; sunucuya gönderilmez ve diğer cihazlarla paylaşılmaz. PostgreSQL şeması <code>db/schema.sql</code> dosyasında hazırdır.</p>
+    {tab === 'data' && <Card title="Sunucu verileri ve yedek">
+      <p>Kayıtlar PostgreSQL veritabanında, kontrol fotoğrafları özel dosya alanında tutulur. JSON çıktısı iş verilerini içerir. Fotoğrafları da almak için proje yedekleme komutunu kullanın. Parola ve oturumları Supabase Auth yönetir.</p>
       <div className="btn-row mt"><Button icon="download" onClick={() => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })); a.download = `heb-servis-yedek-${new Date().toISOString().slice(0, 10)}.json`; a.click() }}>JSON yedeği indir</Button>
-        <Button variant="danger" icon="refresh" onClick={() => { if (confirm('Tüm yerel kayıtlar silinip örnek veriler yüklenecek. Emin misiniz?')) resetDemo() }}>Örnek verilere sıfırla</Button></div>
+      </div>
     </Card>}
     {user && <UserModal user={user.u} onClose={() => setUser(null)} />}
   </>;
@@ -80,6 +80,8 @@ export default function SettingsPage() {
 
 function UserModal({ user, onClose }: { user?: User; onClose: () => void }) {
   const { state, run } = useApp();
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordBusy, setPasswordBusy] = useState(false);
   const { error, busy, submit } = useFormRunner();
   const [role, setRole] = useState<Role>(user?.role ?? 'advisor');
   return <Modal open title={user ? 'Kullanıcıyı düzenle' : 'Yeni kullanıcı'} onClose={onClose} width={520}>
@@ -93,8 +95,19 @@ function UserModal({ user, onClose }: { user?: User; onClose: () => void }) {
         {role === 'customer' && <Field label="Bağlı müşteri kaydı"><select name="customerId" defaultValue={user?.customerId} required>{state.customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>}
       </div>
       <label className="check"><input type="checkbox" name="active" defaultChecked={user?.active ?? true} /> Hesap aktif</label>
-      <p className="form-note"><Icon name="lock" size={14} />Parola yönetimi kimlik doğrulama hizmeti bağlandığında e-posta daveti ile yapılacak.</p>
+      <p className="form-note"><Icon name="lock" size={14} />Yeni hesabı kaydettikten sonra düzenleyerek ilk parolasını belirleyin. Parolaları Supabase Auth yönetir.</p>
       <div className="form-actions"><Button onClick={onClose}>Vazgeç</Button><button className="btn primary" disabled={busy}>Kaydet</button></div>
     </form>
+    {user && <form className="form mt" onSubmit={async e => {
+      e.preventDefault(); const form = e.currentTarget; const f = new FormData(form); setPasswordBusy(true); setPasswordError('');
+      try {
+        const response = await fetch('/api/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id, password: String(f.get('newPassword')) }) });
+        const data = await response.json(); if (!response.ok) throw new Error(data.error); form.reset(); setPasswordError('Parola kaydedildi. Kullanıcı yeniden giriş yapabilir.');
+      } catch (err) { setPasswordError(err instanceof Error ? err.message : 'Parola kaydedilemedi.'); }
+      finally { setPasswordBusy(false); }
+    }}>
+      <Field label="Yeni parola"><input name="newPassword" type="password" minLength={10} maxLength={128} autoComplete="new-password" required /></Field>
+      <p className="small" role="status">{passwordError}</p><button className="btn" disabled={passwordBusy}>Parolayı belirle</button>
+    </form>}
   </Modal>;
 }

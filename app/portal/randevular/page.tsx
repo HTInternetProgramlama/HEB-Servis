@@ -4,7 +4,7 @@ import { useApp } from '@/components/store';
 import { Button, Card, Empty, Status } from '@/components/ui';
 import { Plate } from '@/components/vehicle-identity';
 import { AppointmentForm } from '@/components/forms';
-import { portalView, serviceName, setAppointmentStatus } from '@/lib/rules';
+import { portalView, serviceName, setAppointmentStatus } from '@/lib/commands';
 import { fmtDate } from '@/lib/format';
 
 export default function PortalAppointments() {

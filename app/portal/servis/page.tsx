@@ -1,5 +1,6 @@
 'use client';
 import { detailHref } from '@/lib/routes';
+import { InspectionPhoto } from '@/components/inspection-photo';
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -7,7 +8,7 @@ import { useApp } from '@/components/store';
 import { Button, Card, Empty, KV, Modal, Status } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { Plate } from '@/components/vehicle-identity';
-import { amountDue, amountPaid, balance, decideEstimate, estimateTotals, lineTotals, portalView } from '@/lib/rules';
+import { amountDue, amountPaid, balance, decideEstimate, estimateTotals, lineTotals, portalView } from '@/lib/commands';
 import { fmtDateTime, km, money, qtyText } from '@/lib/format';
 
 export default function Page() {
@@ -47,7 +48,7 @@ function PortalJob() {
 
     <div className="grid-main">
       <Card title="Kontrol sonuçları" sub="Teknisyenin sizinle paylaştığı bulgular" flush>
-        {job.inspections.length ? <ul className="finding-list">{job.inspections.map(i => <li key={i.id}><Status value={i.result} /><div><strong>{i.item}</strong>{i.note && <p>{i.note}</p>}</div></li>)}</ul> : <Empty icon="clipboard" title="Henüz paylaşılan bulgu yok" />}
+        {job.inspections.length ? <ul className="finding-list">{job.inspections.map(i => <li key={i.id}><Status value={i.result} /><div><strong>{i.item}</strong><InspectionPhoto id={i.id} hasPhoto={!!i.photoPath} />{i.note && <p>{i.note}</p>}</div></li>)}</ul> : <Empty icon="clipboard" title="Henüz paylaşılan bulgu yok" />}
       </Card>
       <Card title="Ödeme özeti">
         <dl className="sum">

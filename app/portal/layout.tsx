@@ -22,7 +22,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       <div className="portal-inner">
         <Link href="/portal"><Logo /></Link>
         <nav>{links.map(([href, label]) => <Link key={href} href={href} className={path === href ? 'active' : ''}>{label}</Link>)}</nav>
-        <div className="portal-user"><span>{actor.name}</span><button className="icon-btn" onClick={() => { logout(); router.replace('/giris') }} aria-label="Oturumu kapat" title="Oturumu kapat"><Icon name="logout" size={16} /></button></div>
+        <div className="portal-user"><span>{actor.name}</span><button className="icon-btn" onClick={async () => { await logout(); router.replace('/giris') }} aria-label="Oturumu kapat" title="Oturumu kapat"><Icon name="logout" size={16} /></button></div>
       </div>
     </header>
     <main className="portal-inner portal-main">{children}</main>
