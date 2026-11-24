@@ -39,7 +39,7 @@ export default function AppointmentsPage() {
   const capacity = end - start - (minutes(s.breakEnd) - minutes(s.breakStart));
 
   return <>
-    <PageHeader title="Randevu takvimi" sub="Servis alanlarına göre günlük plan. Onaylı randevular kapasiteyi bloke eder; talepler sağda listelenir."
+    <PageHeader title="Takvim" sub="Servis alanlarına göre günlük plan ve randevu talepleri"
       actions={<Button variant="primary" icon="plus" onClick={() => setForm({ preset: { date: day } })}>Yeni randevu</Button>} />
     <div className="toolbar">
       <div className="btn-group">

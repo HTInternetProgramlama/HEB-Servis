@@ -24,7 +24,7 @@ export default function CustomersPage() {
     }).sort((a, b) => (b.last ?? '').localeCompare(a.last ?? ''));
 
   return <>
-    <PageHeader title="Müşteriler" sub={`${state.customers.length} kayıt · bireysel ve kurumsal`} actions={<Button variant="primary" icon="plus" onClick={() => setForm(true)}>Yeni müşteri</Button>} />
+    <PageHeader title="Müşteriler" sub={`${state.customers.length} kayıt · araçlar ve servis geçmişi müşteri dosyasında`} actions={<><Link className="btn" href="/araclar">Araç kayıtları</Link><Button variant="primary" icon="plus" onClick={() => setForm(true)}>Yeni müşteri</Button></>} />
     <div className="toolbar">
       <div className="seg">{[['', 'Tümü'], ['Bireysel', 'Bireysel'], ['Kurumsal', 'Kurumsal']].map(([k, l]) => <button key={k} className={kind === k ? 'active' : ''} onClick={() => setKind(k)}>{l}</button>)}</div>
       <div className="toolbar-end"><Search value={q} onChange={setQ} placeholder="Ad, müşteri no, telefon, e-posta" /></div>

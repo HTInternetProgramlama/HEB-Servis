@@ -1,0 +1,154 @@
+/* Tasarım B · Kart Akışı / Tablet */
+:root {
+  --bg: #fafafa; --surface: #fff; --surface-2: #f3f6f6; --surface-3: #e9eeee;
+  --line: #e0e7e7; --line-strong: #c7d3d3; --ink: #172b2b; --ink-2: #405656; --muted: #617575; --subtle: #748787;
+  --accent: #0f766e; --accent-hover: #115e59; --accent-soft: #e2f3ef; --accent-line: #b0d8d0; --accent-ink: #115e59;
+  --link: #0f766e; --focus: #0f766e; --focus-ring: 0 0 0 3px #0f766e30;
+  --side: #f1f5f4; --side-ink: #506762; --side-active: #dceee8;
+  --chart-2: #4e9eab; --shadow: 0 1px 2px #0000000f;
+}
+:root[data-theme="dark"] {
+  --bg: #142020; --surface: #1c2b2b; --surface-2: #223333; --surface-3: #2a4141;
+  --line: #344a4a; --line-strong: #4a6262; --ink: #eef5f4; --ink-2: #c8d9d6; --muted: #a3bcb7; --subtle: #95aaa6;
+  --accent: #68d3bf; --accent-hover: #8ee3d3; --accent-soft: #23463f; --accent-line: #3d6f64; --accent-ink: #a5eddd;
+  --link: #86dfcd; --focus: #68d3bf; --focus-ring: 0 0 0 3px #68d3bf30; --on-accent: #12362e;
+  /* İkon rayı koyu temada da açık kalır. */
+  --side: #dce7e3; --side-ink: #35554b; --side-active: #c2ddd2; --chart-2: #6fadb8;
+}
+body { font-size: 15px; line-height: 1.5 }
+.sidebar { width: 76px; background: var(--side); color: var(--side-ink); border-color: #cbd8d3 }
+.side-top { height: 80px; padding: 0; justify-content: center }
+.sidebar .logo-text, .side-label, .side-user > div { display: none }
+.sidebar .logo-mark { width: 36px; height: 36px }
+.side-nav { padding: 6px; overflow: visible }
+.side-group { margin: 0; display: grid; gap: 8px }
+.side-link { min-height: 62px; padding: 8px 2px; display: flex; flex-direction: column; gap: 5px; justify-content: center; border-radius: 8px; color: var(--side-ink); font-size: 11px }
+.side-link > .icon { width: 21px; height: 21px }
+.side-link.active { color: #115e59; background: var(--side-active); box-shadow: none }
+.sidebar .side-link .icon { color: #506e63 }
+.sidebar .side-link.active .icon { color: #115e59 }
+.side-link.active::before { display: none }
+.side-link:hover { background: #cfe1d9; color: #115e59 }
+.side-foot { padding: 8px 6px; border-color: #cbd8d3; margin-top: auto }
+.side-user { padding: 10px 0 0; flex-direction: column; gap: 5px }
+.side-user .avatar { background: #c4dad1; color: #214f40 }
+.side-user .icon-btn { color: #35554b }
+.rail-tools { position: relative }
+.rail-tools summary { list-style: none; min-height: 56px; display: grid; justify-items: center; align-content: center; gap: 4px; cursor: pointer; font-size: 11px }
+.rail-tools summary::-webkit-details-marker { display: none }
+.rail-tools > div { position: absolute; left: 72px; bottom: 0; width: 240px; padding: 8px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-pop); border-radius: 8px }
+.rail-tools a { min-height: 48px; display: flex; align-items: center; gap: 10px; padding: 8px; color: var(--ink) }
+.rail-tools a:hover { background: var(--surface-2) }
+.main { margin-left: 76px }
+.topbar { height: 80px; gap: 16px; padding: 12px 28px; background: var(--surface) }
+.global-search { height: 48px; width: min(720px, 100%); flex: 1; background: var(--surface-2); box-shadow: none; padding: 0 14px; color: var(--muted) }
+.global-search span { font-size: 15px }
+.top-right { margin-left: auto; flex-shrink: 0 }
+.content { max-width: 1900px; gap: 24px; padding: 28px; min-width: 0 }
+.page-head h1 { font-size: 28px; font-weight: 600; letter-spacing: -.025em }
+.btn, .btn.sm, .icon-btn, .select, .select.sm, .tabs button, .seg button, .vis-toggle, .chip, .cmdk-item { min-height: 44px }
+.icon-btn { min-width: 44px }
+.btn { font-size: 15px }
+.btn.sm { font-size: 14px }
+.form input:not([type="checkbox"]):not([type="radio"]), .form select, .field input:not([type="checkbox"]):not([type="radio"]), .field select { min-height: 44px; font-size: 16px }
+.field-label { font-size: 14px }
+.table td { padding-top: 14px; padding-bottom: 14px }
+.workflow-toolbar { flex-wrap: wrap; gap: 12px }
+.board-settings { position: relative }
+.board-settings summary { list-style: none; cursor: pointer }
+.board-settings summary::-webkit-details-marker { display: none }
+.board-settings > div { position: absolute; z-index: 25; top: 52px; left: 0; width: 280px; max-width: calc(100vw - 28px); padding: 16px; display: grid; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-pop) }
+.board-settings label { display: flex; align-items: center; justify-content: space-between; gap: 12px }
+.board { grid-template-columns: repeat(5, minmax(258px, 1fr)); gap: 16px; padding-bottom: 18px; scrollbar-width: auto; scroll-snap-type: x proximity }
+.board-col { min-height: 300px; scroll-snap-align: start; background: var(--surface-2); border-top-width: 3px }
+.board-col header { min-height: 60px; padding: 14px; font-size: 16px }
+.board-col header em { display: grid; place-items: center; min-width: 28px; height: 28px; border-radius: 6px; background: var(--surface); color: var(--ink); font-size: 15px }
+.board-items { padding: 0 10px 12px; gap: 12px }
+.board-link { padding: 14px; gap: 10px }
+.board-art { background: var(--surface-2); padding: 0 12px; border-radius: 6px }
+.board-art .car-img { max-height: 120px }
+.board-vehicle { flex-direction: column; align-items: flex-start; gap: 8px; font-size: 15px }
+.board-customer { font-weight: 600; font-size: 15px }
+.board-complaint { font-size: 14px }
+.board-meta { display: grid; gap: 9px; font-size: 13px }
+.board-actions { padding: 10px; gap: 8px }
+.board-actions .btn { flex: 1 }
+.workflow-progress { height: 6px; overflow: hidden; border-radius: 4px; background: var(--surface-3) }
+.workflow-progress i { display: block; height: 100%; border-radius: inherit; background: var(--accent) }
+.board-empty { padding: 24px 8px; color: var(--muted); font-size: 14px }
+.detail-layout { grid-template-columns: minmax(0, 1fr) 300px; gap: 24px }
+.detail-side { min-width: 0 }
+.next-action .btn { width: 100%; margin-top: 12px; white-space: normal }
+.job-tools { position: relative }
+.job-tools summary { list-style: none; cursor: pointer }
+.job-tools summary::-webkit-details-marker { display: none }
+.job-tools > div { position: absolute; right: 0; top: 52px; display: grid; gap: 8px; width: 280px; max-width: calc(100vw - 28px); padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-pop); z-index: 25 }
+.detail-side .card { box-shadow: none }
+.detail-side .card-head { padding: 16px }
+.detail-side .card-body { padding: 16px }
+.job-stepper { padding: 12px; box-shadow: none; gap: 8px; scrollbar-width: thin }
+.job-stepper li { padding: 0; flex: 1; font-size: 15px }
+.job-stepper li::after { display: none }
+.job-stepper li button { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px; border: 0; background: transparent; color: inherit; border-radius: 6px; width: 100%; text-align: left }
+.job-stepper li button:hover { background: var(--surface-2) }
+.job-stepper li span { width: 30px; height: 30px; font-size: 14px; flex-shrink: 0 }
+.job-stepper li.done span { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-line) }
+.job-stepper li.current { color: var(--accent) }
+.tabs { overflow-x: auto; flex-wrap: nowrap; gap: 12px }
+.tabs button { flex-shrink: 0; font-size: 15px; padding: 12px 10px }
+.inspection-rating { border: 0; margin: 0; padding: 0; display: flex; gap: 12px; flex-wrap: wrap }
+.inspection-rows { list-style: none; margin: 0; padding: 0 }
+.inspection-rows li { display: grid; gap: 12px; padding: 20px; border-bottom: 1px solid var(--line) }
+.inspection-rows li:last-child { border-bottom: 0 }
+.inspection-rows p { overflow-wrap: anywhere }
+.search-input { min-height: 44px; max-width: 100% }
+.search-input input { min-width: 0; font-size: 15px }
+.search-input button { min-width: 44px; min-height: 44px }
+.inspection-rating legend { font-size: 14px; margin-bottom: 8px }
+.inspection-rating label { position: relative; flex: 1; min-width: 90px; cursor: pointer }
+.inspection-rating input { position: absolute; opacity: 0 }
+.inspection-rating span { display: grid; place-items: center; min-height: 52px; padding: 10px; border: 1px solid var(--line-strong); background: var(--surface); border-radius: 8px }
+.inspection-rating input:checked + span { background: var(--ok-bg); color: var(--ok); border-color: var(--ok) }
+.inspection-rating label:nth-of-type(2) input:checked + span { background: var(--warn-bg); color: var(--warn); border-color: var(--warn) }
+.inspection-rating label:nth-of-type(3) input:checked + span { background: var(--bad-bg); color: var(--bad); border-color: var(--bad) }
+.inspection-rating input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 3px }
+#job-payments { scroll-margin-top: 100px }
+.ai-hero, .ai-panel, .drawing-stage, .report-stage { background: var(--surface-2) }
+.ai-hero-art .scan { display: none }
+.report-paper { --accent: #0f766e }
+.portal .card { box-shadow: var(--shadow) }
+.portal-head h1 { font-size: 26px }
+.portal-top { background: var(--surface) }
+@media (max-width: 1100px) {
+  .detail-layout { grid-template-columns: minmax(0, 1fr) 280px }
+  .job-stepper li button { flex-direction: column; gap: 6px; min-width: 72px }
+}
+@media (min-width: 761px) {
+  .sidebar { transform: none }
+  .icon-btn.menu-btn, .menu-open .scrim { display: none }
+}
+@media (max-width: 760px) {
+  .sidebar { width: 76px }
+  .main { margin-left: 0 }
+  .menu-btn { display: inline-flex }
+  .topbar { height: 72px; gap: 8px; padding: 10px 12px }
+  .global-search { min-width: 44px; height: 44px; padding: 0 10px }
+  .global-search span { font-size: 14px }
+  .top-right { gap: 4px }
+  .new-job { padding: 8px 10px; gap: 4px; white-space: nowrap }
+  .top-right .icon-btn { display: none }
+  .content { padding: 20px 14px; gap: 18px }
+  .page-head h1 { font-size: 24px }
+  .page-actions { width: 100%; flex-wrap: wrap }
+  .workflow-toolbar .seg { width: 100%; display: flex }
+  .workflow-toolbar .seg button { flex: 1; padding: 8px }
+  .board { grid-template-columns: repeat(5, 292px); gap: 12px }
+  .detail-layout { grid-template-columns: minmax(0, 1fr) }
+  .detail-side { grid-template-columns: minmax(0, 1fr) }
+  .job-stepper li:not(.current) { font-size: 15px }
+  .job-stepper li button { min-width: 80px }
+  .job-stepper li span { font-size: 14px }
+  .tabs { gap: 4px }
+  .portal-top .portal-inner { height: auto; min-height: 68px; flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px }
+}
+@media print { .main { margin: 0 } }

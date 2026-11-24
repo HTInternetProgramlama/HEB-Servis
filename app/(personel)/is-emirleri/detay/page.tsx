@@ -1,7 +1,7 @@
 'use client';
 import { detailHref } from '@/lib/routes';
 import { InspectionPhoto } from '@/components/inspection-photo';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useApp } from '@/components/store';
@@ -20,8 +20,12 @@ import { generateTechnicalDraft, type Suggestion } from '@/lib/advisor';
 import { fmtDate, fmtDateTime, km, money, qtyText } from '@/lib/format';
 import type { Channel, Estimate, InspectionResult, Job, JobStatus } from '@/lib/types';
 
-type Tab = 'overview' | 'inspection' | 'estimate' | 'payments' | 'history';
-const flow: JobStatus[] = ['Kabul edildi', 'İnceleniyor', 'Onay bekliyor', 'İşlemde', 'Son kontrol', 'Teslime hazır', 'Teslim edildi'];
+type Tab = 'overview' | 'inspection' | 'estimate' | 'history';
+const flow: { label: string; tab: Tab }[] = [
+  { label: 'Kabul', tab: 'overview' }, { label: 'Muayene', tab: 'inspection' },
+  { label: 'Teklif', tab: 'estimate' }, { label: 'Onay', tab: 'estimate' },
+  { label: 'İş', tab: 'estimate' }, { label: 'Ödeme', tab: 'overview' }, { label: 'Teslim', tab: 'overview' },
+];
 
 export default function Page() {
   return <Suspense><JobDetail /></Suspense>;
@@ -32,6 +36,10 @@ function JobDetail() {
   const { state, actor, run } = useApp();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('overview');
+  useEffect(() => {
+    try { const saved = localStorage.getItem(`heb-job-tab-${id}`); setTab(['overview', 'inspection', 'estimate', 'history'].includes(saved ?? '') ? saved as Tab : 'overview') } catch { /* Depolama kapalı olabilir. */ }
+  }, [id]);
+  function selectTab(next: Tab) { setTab(next); try { localStorage.setItem(`heb-job-tab-${id}`, next) } catch { /* Depolama kapalı olabilir. */ } }
   const [modal, setModal] = useState<'' | 'payment' | 'deliver' | 'evaluate' | 'cancel' | 'move'>('');
   const [pendingMove, setPendingMove] = useState<JobStatus | null>(null);
   const job = state.jobs.find(j => j.id === id);
@@ -41,7 +49,7 @@ function JobDetail() {
   const customer = state.customers.find(c => c.id === job.customerId)!;
   const moves = allowedMoves(job, actor);
   const latest = latestEstimate(job);
-  const step = job.status === 'Parça bekliyor' ? flow.indexOf('İşlemde') : flow.indexOf(job.status);
+  const step = job.status === 'Teslim edildi' ? 6 : job.status === 'Teslime hazır' ? 5 : ['İşlemde', 'Parça bekliyor', 'Son kontrol'].includes(job.status) ? 4 : latest?.status === 'Gönderildi' || latest?.status === 'Onaylandı' ? 3 : latest ? 2 : job.status === 'İnceleniyor' ? 1 : 0;
   const showMoney = can(actor, 'payment.read');
 
   function doMove(m: JobStatus) {
@@ -54,31 +62,46 @@ function JobDetail() {
     <PageHeader crumbs={[['İş emirleri', '/is-emirleri'], [job.no]]}
       title={<span className="title-row"><span className="mono">{job.no}</span><Status value={job.status} /></span>}
       sub={<>{serviceName(state, job.serviceId)} · kabul {fmtDateTime(job.createdAt)} · danışman {staffName(state, job.advisorId)}</>}
-      actions={<>
+      actions={<details className="job-tools"><summary className="btn">Diğer işlemler</summary><div>
         {moves.filter(m => m !== 'İptal').map(m => <Button key={m} variant="primary" onClick={() => doMove(m)}>{m === 'Teslime hazır' && job.status === 'Onay bekliyor' ? 'İşlemsiz teslime hazırla' : m}<Icon name="arrow" size={14} /></Button>)}
         {job.status === 'Teslime hazır' && can(actor, 'payment.write') && <Button variant="primary" icon="check" onClick={() => setModal('deliver')}>Teslim et</Button>}
         {showMoney && balance(job) > 0 && <Button icon="wallet" onClick={() => setModal('payment')}>Tahsilat</Button>}
         {job.status === 'Teslim edildi' && can(actor, 'evaluation.write') && <Button icon="star" onClick={() => setModal('evaluate')}>Ziyareti değerlendir</Button>}
         <Link className="btn" href={detailHref('/servis-formu', job.id)} target="_blank"><Icon name="printer" size={15} />Servis formu</Link>
         {moves.includes('İptal') && <Button variant="ghost" onClick={() => setModal('cancel')}>İptal et</Button>}
-      </>} />
+      </div></details>} />
 
-    {job.status !== 'İptal' && <ol className="stepper">{flow.map((f, i) => <li key={f} className={i < step ? 'done' : i === step ? 'current' : ''}><span>{i < step ? <Icon name="check" size={12} /> : i + 1}</span>{f === 'İşlemde' && job.status === 'Parça bekliyor' ? 'Parça bekliyor' : f}</li>)}</ol>}
+    {job.status !== 'İptal' && <ol className="stepper job-stepper" aria-label="İş emri adımları">{flow.map((f, i) => <li key={f.label} className={i < step ? 'done' : i === step ? 'current' : ''}><button type="button" aria-current={i === step ? 'step' : undefined} onClick={() => {
+      selectTab(f.tab);
+      if (i === 5) requestAnimationFrame(() => document.getElementById('job-payments')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      if (i === 6 && job.status === 'Teslime hazır' && can(actor, 'payment.write')) setModal('deliver');
+    }}><span>{i < step ? <Icon name="check" size={16} /> : i + 1}</span>{f.label}</button></li>)}</ol>}
 
     <div className="detail-layout">
       <div className="detail-main">
-        <Tabs value={tab} onChange={setTab} items={[
-          ['overview', 'Kabul bilgileri'], ['inspection', 'Kontrol bulguları', job.inspections.length], ['estimate', 'Teklif', job.estimates.length],
-          ...(showMoney ? [['payments', 'Tahsilat', job.payments.length] as [Tab, string, number]] : []), ['history', 'Durum geçmişi', job.history.length],
+        <Tabs value={tab} onChange={selectTab} items={[
+          ['overview', 'Özet'], ['estimate', 'Hizmetler/Teklif', job.estimates.length], ['inspection', 'Muayene', job.inspections.length], ['history', 'Mesajlar/Notlar', job.history.length],
         ]} />
-        {tab === 'overview' && <Overview job={job} />}
+        {tab === 'overview' && <><Overview job={job} />{showMoney && <div id="job-payments"><Payments job={job} onAdd={() => setModal('payment')} /></div>}</>}
         {tab === 'inspection' && <Inspections job={job} />}
         {tab === 'estimate' && <EstimatePanel job={job} />}
-        {tab === 'payments' && showMoney && <Payments job={job} onAdd={() => setModal('payment')} />}
+        {tab === 'history' && <Card title="Müşteri iletişimi ve iç notlar">
+          <p className="muted">Teklif bağlantısını Hizmetler/Teklif sekmesindeki “Müşteriye ilet” eyleminden paylaşabilirsiniz.</p>
+          {can(actor, 'note.read') && state.notes.filter(n => n.customerId === customer.id).map(n => <div className="inner-note" key={n.id}><Icon name="lock" size={16} /><div><b>{n.category}</b><p>{n.text}</p></div></div>)}
+          {can(actor, 'customer.write') && <Link className="btn mt" href={detailHref('/musteriler/detay', customer.id)}>Müşteri notlarını yönet</Link>}
+        </Card>}
         {tab === 'history' && <Card flush><ol className="timeline">{[...job.history].reverse().map((h, i) => <li key={i}><Status value={h.status} /><div><strong>{h.by}</strong>{h.note && <p>{h.note}</p>}</div><time>{fmtDateTime(h.at)}</time></li>)}</ol></Card>}
       </div>
 
       <aside className="detail-side">
+        <Card title="Sonraki işlem" className="next-action">
+          <p className="small muted">{job.status === 'İptal' ? 'Bu iş emri iptal edildi.' : `Geçerli adım: ${flow[step].label}`}</p>
+          {latest?.status === 'Taslak' && can(actor, 'estimate.write') ? <Button variant="primary" onClick={() => selectTab('estimate')}>Teklifi hazırla ve gönder</Button>
+            : latest?.status === 'Gönderildi' && can(actor, 'estimate.write') ? <Button variant="primary" onClick={() => selectTab('estimate')}>Müşteri onayını yönet</Button>
+            : job.status === 'Teslime hazır' && can(actor, 'payment.write') ? <Button variant="primary" onClick={() => setModal(balance(job) > 0 ? 'payment' : 'deliver')}>{balance(job) > 0 ? 'Ödeme al' : 'Teslim et'}</Button>
+            : moves.find(m => m !== 'İptal' && m !== 'Parça bekliyor') ? <Button variant="primary" onClick={() => doMove(moves.find(m => m !== 'İptal' && m !== 'Parça bekliyor')!)}>{moves.find(m => m !== 'İptal' && m !== 'Parça bekliyor')}</Button>
+            : <Button onClick={() => selectTab('overview')}>Özeti incele</Button>}
+        </Card>
         <Card title="Araç">
           <CarDrawing vehicle={vehicle} />
           <div className="row-between mt"><Plate value={vehicle.plate} /><Link href={detailHref('/araclar/detay', vehicle.id)} className="btn sm link">Araç dosyası</Link></div>
@@ -95,11 +118,13 @@ function JobDetail() {
         </Card>
         {showMoney && <Card title="Mali özet">
           <dl className="sum">
+            {latest && <div><dt>Güncel teklif toplamı</dt><dd>{money(estimateTotals(latest).total)}</dd></div>}
             <div><dt>Onaylı iş tutarı</dt><dd>{money(amountDue(job))}</dd></div>
             <div><dt>Tahsil edilen</dt><dd>{money(amountPaid(job))}</dd></div>
             <div className="total"><dt>Kalan bakiye</dt><dd className={balance(job) > 0 ? 'text-bad' : ''}>{money(balance(job))}</dd></div>
           </dl>
           {latest && latest.status === 'Gönderildi' && <p className="small muted mt">v{latest.version} teklifi ({money(estimateTotals(latest).total)}) müşteri kararını bekliyor.</p>}
+          {can(actor, 'payment.write') && balance(job) > 0 && <Button className="mt" variant="primary" icon="wallet" onClick={() => setModal('payment')}>Ödeme al</Button>}
         </Card>}
       </aside>
     </div>
@@ -171,16 +196,14 @@ function Inspections({ job }: { job: Job }) {
 
   return <div className="stack">
     <Card title="Kontrol bulguları" sub="Kabuldeki mevcut hasarlardan ayrı tutulur. Müşteriye açık işaretli bulgular portalda ve servis formunda görünür." flush>
-      {job.inspections.length ? <table className="table">
-        <thead><tr><th>Kontrol maddesi</th><th>Sonuç</th><th className="hide-sm">Açıklama</th><th className="hide-sm">Kaydeden</th><th>Müşteri</th></tr></thead>
-        <tbody>{job.inspections.map(i => <tr key={i.id}>
-          <td><strong>{i.item}</strong><InspectionPhoto id={i.id} hasPhoto={!!i.photoPath} writable={writable} />{i.source === 'Ön değerlendirme' && <small className="cell-sub">Ön değerlendirmeden</small>}</td>
-          <td><Status value={i.result} /></td>
-          <td className="hide-sm small">{i.note || '—'}</td>
-          <td className="hide-sm small">{i.by}<small className="cell-sub">{fmtDateTime(i.at)}</small></td>
-          <td>{can(actor, 'estimate.write') ? <button className={'vis-toggle ' + (i.customerVisible ? 'on' : '')} onClick={() => run((s, a) => toggleInspectionVisibility(s, a, job.id, i.id), i.customerVisible ? 'Bulgu müşteriden gizlendi' : 'Bulgu müşteriye açıldı', job.no)} aria-label={i.customerVisible ? 'Müşteriye açık' : 'Yalnız personel'}><Icon name={i.customerVisible ? 'eye' : 'eyeoff'} size={14} />{i.customerVisible ? 'Açık' : 'Gizli'}</button> : <span className="small muted">{i.customerVisible ? 'Açık' : 'Gizli'}</span>}</td>
-        </tr>)}</tbody>
-      </table> : <Empty icon="clipboard" title="Henüz bulgu kaydedilmedi" />}
+      {job.inspections.length ? <ul className="inspection-rows">{job.inspections.map(i => <li key={i.id}>
+        <div className="row-between wrap"><strong>{i.item}</strong><Status value={i.result} /></div>
+        <p>{i.note || 'Açıklama eklenmemiş.'}</p>
+        <small className="muted">{i.by} · {fmtDateTime(i.at)}{i.source === 'Ön değerlendirme' && ' · Ön değerlendirmeden'}</small>
+        <div className="row-between wrap"><InspectionPhoto id={i.id} hasPhoto={!!i.photoPath} writable={writable} />
+          {can(actor, 'estimate.write') ? <button className={'vis-toggle ' + (i.customerVisible ? 'on' : '')} onClick={() => run((s, a) => toggleInspectionVisibility(s, a, job.id, i.id), i.customerVisible ? 'Bulgu müşteriden gizlendi' : 'Bulgu müşteriye açıldı', job.no)} aria-label={i.customerVisible ? 'Müşteriye açık' : 'Yalnız personel'}><Icon name={i.customerVisible ? 'eye' : 'eyeoff'} size={16} />{i.customerVisible ? 'Müşteriye açık' : 'Yalnız personel'}</button> : <span className="small muted">{i.customerVisible ? 'Müşteriye açık' : 'Yalnız personel'}</span>}
+        </div>
+      </li>)}</ul> : <Empty icon="clipboard" title="Henüz bulgu kaydedilmedi" />}
     </Card>
 
     {writable && <Card title="Bulgu ekle">
@@ -191,7 +214,7 @@ function Inspections({ job }: { job: Job }) {
         <FormError error={error} />
         <div className="grid-3">
           <Field label="Kontrol maddesi" wide><input name="item" required minLength={3} maxLength={120} list="check-items" placeholder="Ör. Ön fren balata kalınlığı" /></Field>
-          <Field label="Sonuç"><select name="result"><option>Uygun</option><option>Takip edilmeli</option><option>Acil</option></select></Field>
+          <fieldset className="inspection-rating wide"><legend>Muayene sonucu</legend>{[['Uygun', 'İyi'], ['Takip edilmeli', 'Yakında'], ['Acil', 'Acil']].map(([value, label]) => <label key={value}><input type="radio" name="result" value={value} defaultChecked={value === 'Uygun'} required /><span>{label}</span></label>)}</fieldset>
           <Field label="Ölçüm / açıklama" wide><input name="note" maxLength={600} placeholder="Ör. 3 mm, sol ön disk çizik" /></Field>
         </div>
         <datalist id="check-items">{['Ön fren balata kalınlığı', 'Arka fren balata kalınlığı', 'Fren diski yüzeyi', 'Fren hidroliği seviyesi ve nem oranı', 'Lastik diş derinliği', 'Akü sağlık testi', 'Motor yağı seviyesi', 'Soğutma sıvısı seviyesi', 'Ön düzen boşlukları', 'Amortisörler', 'Silecekler', 'Aydınlatma', 'Egzoz sistemi', 'OBD arıza kodları'].map(x => <option key={x} value={x} />)}</datalist>

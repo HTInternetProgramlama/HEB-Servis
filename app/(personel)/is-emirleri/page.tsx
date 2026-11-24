@@ -24,7 +24,6 @@ export default function JobsPage() {
   const router = useRouter();
   const [q, setQ] = useState('');
   const [group, setGroup] = useState(0);
-  const [mineOnly, setMineOnly] = useState(actor.role === 'technician');
   const [intake, setIntake] = useState(false);
   useEffect(() => { if (new URLSearchParams(location.search).get('yeni') === '1' && can(actor, 'job.create')) setIntake(true) }, [actor]);
 
@@ -32,7 +31,7 @@ export default function JobsPage() {
   const filter = groups[group][1];
   const jobs = state.jobs.filter(j => {
     if (filter && !filter.includes(j.status)) return false;
-    if (mineOnly && j.technicianId !== actor.userId) return false;
+    if (actor.role === 'technician' && j.technicianId !== actor.userId) return false;
     if (!term) return true;
     const v = state.vehicles.find(v => v.id === j.vehicleId), c = state.customers.find(c => c.id === j.customerId);
     return fold(j.no).includes(term) || (!!v && normalizePlate(v.plate).includes(plate)) || (!!c && fold(c.name).includes(term)) || fold(j.intake.complaint).includes(term);
@@ -43,7 +42,7 @@ export default function JobsPage() {
       actions={can(actor, 'job.create') && <Button variant="primary" icon="plus" onClick={() => setIntake(true)}>Randevusuz araç kabul</Button>} />
     <div className="toolbar">
       <div className="seg">{groups.map(([label, st], i) => <button key={label} className={group === i ? 'active' : ''} onClick={() => setGroup(i)}>{label}<span className="seg-count">{state.jobs.filter(j => !st || st.includes(j.status)).length}</span></button>)}</div>
-      {actor.role === 'technician' && <label className="check inline"><input type="checkbox" checked={mineOnly} onChange={e => setMineOnly(e.target.checked)} /> Yalnız bana atananlar</label>}
+      {actor.role === 'technician' && <span className="small muted">Yalnız size atanan işler gösteriliyor.</span>}
       <div className="toolbar-end"><Search value={q} onChange={setQ} placeholder="İş emri, plaka, müşteri, şikâyet" /></div>
     </div>
     <Card flush><JobTable jobs={jobs} /></Card>

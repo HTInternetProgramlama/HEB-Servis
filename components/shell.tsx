@@ -6,10 +6,11 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useStore } from './store';
 import { Icon, type IconName } from './icons';
 import { Avatar } from './ui';
+import { IntakeForm } from './forms';
 import { Plate } from './vehicle-identity';
 import { DriftLoader } from './car-art';
-import { can, dueReminders, roleLabel, type Permission } from '@/lib/rules';
-import { fmtLongDate, fold, normalizePlate, today } from '@/lib/format';
+import { can, roleLabel, type Permission } from '@/lib/rules';
+import { fold, normalizePlate } from '@/lib/format';
 
 interface NavItem { href: string; label: string; icon: IconName; perm?: Permission; badge?: number; tech?: boolean; hot?: boolean }
 
@@ -29,6 +30,7 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const path = usePathname();
   const [menu, setMenu] = useState(false);
+  const [intake, setIntake] = useState(false);
 
   useEffect(() => {
     if (!ready) return;
@@ -37,57 +39,40 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
   }, [ready, actor, router]);
   useEffect(() => setMenu(false), [path]);
 
-  const counts = useMemo(() => {
-    if (!state) return { requests: 0, approvals: 0, reminders: 0 };
-    return {
-      requests: state.appointments.filter(a => a.status === 'Bekliyor').length,
-      approvals: state.jobs.filter(j => j.estimates.at(-1)?.status === 'Gönderildi').length,
-      reminders: dueReminders(state).filter(r => !r.hasAppointment).length,
-    };
-  }, [state]);
-
   if (!ready || !state || !actor || actor.role === 'customer') return <Loading />;
 
   const groups: [string, NavItem[]][] = [
-    ['Operasyon', [
-      { href: '/', label: 'Genel bakış', icon: 'dashboard', tech: true },
-      { href: '/randevular', label: 'Randevu takvimi', icon: 'calendar', perm: 'appointment.manage', badge: counts.requests, hot: true },
-      { href: '/atolye', label: 'Atölye panosu', icon: 'board', tech: true },
-      { href: '/is-emirleri', label: 'İş emirleri', icon: 'wrench', tech: true },
-      { href: '/teklifler', label: 'Teklif onayları', icon: 'receipt', perm: 'estimate.write', badge: counts.approvals, hot: true },
-      { href: '/yapay-zeka', label: 'Yapay zekâ asistanı', icon: 'sparkle', perm: 'inspection.write' },
-    ]],
-    ['Kayıtlar', [
+    ['Çalışma alanı', [
+      { href: '/', label: 'İş Akışı', icon: 'board', tech: true },
+      { href: '/randevular', label: 'Takvim', icon: 'calendar', perm: 'appointment.manage' },
       { href: '/musteriler', label: 'Müşteriler', icon: 'users', perm: 'customer.write' },
-      { href: '/araclar', label: 'Araçlar', icon: 'car', tech: true },
-      { href: '/hatirlatmalar', label: 'Bakım hatırlatmaları', icon: 'bell', perm: 'reminder.write', badge: counts.reminders },
-    ]],
-    ['Finans ve rapor', [
-      { href: '/tahsilat', label: 'Tahsilat', icon: 'wallet', perm: 'payment.read' },
+      { href: '/katalog', label: 'Stok', icon: 'package', perm: 'estimate.write' },
       { href: '/raporlar', label: 'Raporlar', icon: 'chart', perm: 'reports.read' },
     ]],
-    ['Yönetim', [
-      { href: '/katalog', label: 'Parça ve işçilik', icon: 'package', perm: 'estimate.write' },
-      { href: '/ayarlar', label: 'Ayarlar ve personel', icon: 'settings', perm: 'settings.write' },
-      { href: '/gunluk', label: 'İşlem günlüğü', icon: 'history', perm: 'audit.read' },
-    ]],
   ];
+  const utilities: NavItem[] = [
+    { href: '/ayarlar', label: 'Ayarlar', icon: 'settings', perm: 'settings.write' },
+    { href: '/hatirlatmalar', label: 'Hatırlatmalar', icon: 'bell', perm: 'reminder.write' },
+    { href: '/gunluk', label: 'İşlem günlüğü', icon: 'history', perm: 'audit.read' },
+    { href: '/yapay-zeka', label: 'Yapay zekâ asistanı', icon: 'sparkle', perm: 'inspection.write' },
+  ].filter(i => can(actor, i.perm as Permission)) as NavItem[];
+  /* İkincil araçlar alt menüde ve genel aramada erişilebilir. */
   const visible = groups.map(([g, items]) => [g, items.filter(i => i.perm ? can(actor, i.perm) : i.tech)] as [string, NavItem[]]).filter(([, items]) => items.length);
-  const active = (href: string) => href === '/' ? path === '/' : path.startsWith(href);
+  const active = (href: string) => href === '/' ? path === '/' || path.startsWith('/atolye') || path.startsWith('/is-emirleri') : path.startsWith(href) || (href === '/musteriler' && path.startsWith('/araclar'));
 
   return <div className={'shell ' + (menu ? 'menu-open' : '')}>
     <aside className="sidebar">
-      <div className="side-top"><Link href="/" aria-label="Genel bakış"><Logo /></Link></div>
-      <div className="side-branch"><Icon name="building" size={15} /><div><strong>{state.settings.company.branch}</strong><small>{state.settings.company.address.split(',').at(-1)?.trim()}</small></div></div>
+      <div className="side-top"><Link href="/" aria-label="HEB Servis · İş Akışı"><Logo /></Link></div>
       <nav className="side-nav">
         {visible.map(([g, items]) => <div key={g} className="side-group"><span className="side-label">{g}</span>
-          {items.map(i => <Link key={i.href} href={i.href} className={'side-link ' + (active(i.href) ? 'active' : '')} aria-current={active(i.href) ? 'page' : undefined}>
+          {items.map(i => <Link key={i.href} href={i.href} title={i.label} className={'side-link ' + (active(i.href) ? 'active' : '')} aria-current={active(i.href) ? 'page' : undefined}>
             <Icon name={i.icon} size={16} /><span>{i.label}</span>{!!i.badge && <em className={'side-badge ' + (i.hot ? 'hot' : '')}>{i.badge}</em>}
           </Link>)}
         </div>)}
       </nav>
       <div className="side-foot">
-        <div className="side-user"><Avatar name={actor.name} size={30} /><div><strong>{actor.name}</strong><small>{roleLabel[actor.role]}</small></div>
+        <details className="rail-tools"><summary title="Ayarlar ve araçlar"><Icon name="settings" size={20} /><span>Ayarlar</span></summary><div>{utilities.map(i => <Link key={i.href} href={i.href}><Icon name={i.icon} size={16} />{i.label}</Link>)}</div></details>
+        <div className="side-user" title={`${actor.name} · ${roleLabel[actor.role]}`}><Avatar name={actor.name} size={30} /><div><strong>{actor.name}</strong><small>{roleLabel[actor.role]}</small></div>
           <button className="icon-btn" onClick={async () => { await logout(); router.replace('/giris') }} aria-label="Oturumu kapat" title="Oturumu kapat"><Icon name="logout" size={16} /></button></div>
       </div>
     </aside>
@@ -95,14 +80,15 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
     <div className="main">
       <header className="topbar">
         <button className="icon-btn menu-btn" onClick={() => setMenu(!menu)} aria-label="Menü" aria-expanded={menu}><Icon name="menu" size={18} /></button>
-        <CommandPalette groups={visible} />
+        <CommandPalette groups={[...visible, ['Araçlar', utilities]]} onNewJob={() => setIntake(true)} />
         <div className="top-right">
-          <span className="top-date">{fmtLongDate(today())}</span>
+          {can(actor, 'job.create') && <button type="button" className="btn primary new-job" onClick={() => setIntake(true)}><Icon name="plus" size={18} />Yeni iş</button>}
           <ThemeToggle />
         </div>
       </header>
       {loadError && <div className="banner warn"><Icon name="alert" size={15} />{loadError}</div>}
       <main className="content">{children}</main>
+      {intake && can(actor, 'job.create') && <IntakeForm open onClose={() => setIntake(false)} onDone={id => { setIntake(false); router.push(detailHref('/is-emirleri/detay', id)) }} />}
     </div>
   </div>;
 }
@@ -121,7 +107,7 @@ export function ThemeToggle() {
   </button>;
 }
 
-function CommandPalette({ groups }: { groups: [string, NavItem[]][] }) {
+function CommandPalette({ groups, onNewJob }: { groups: [string, NavItem[]][]; onNewJob: () => void }) {
   const { state, actor, logout } = useStore();
   const router = useRouter();
   const ref = useRef<HTMLDialogElement>(null);
@@ -150,11 +136,12 @@ function CommandPalette({ groups }: { groups: [string, NavItem[]][] }) {
     const found: PaletteItem[] = [];
     if (term.length >= 2) {
       for (const j of state.jobs) {
+        if (actor.role === 'technician' && j.technicianId !== actor.userId) continue;
         const v = state.vehicles.find(x => x.id === j.vehicleId);
         if (fold(j.no).includes(term) || (v && plate && normalizePlate(v.plate).includes(plate)))
           found.push({ key: 'j' + j.id, group: 'İş emirleri', icon: 'wrench', label: j.no, title: <><b className="mono">{j.no}</b>{v && <Plate value={v.plate} size="sm" />}</>, sub: `${v ? v.brand + ' ' + v.model + ' · ' : ''}${j.status}`, run: go(detailHref('/is-emirleri/detay', j.id)) });
       }
-      for (const v of state.vehicles)
+      for (const v of state.vehicles.filter(v => actor.role !== 'technician' || state.jobs.some(j => j.vehicleId === v.id && j.technicianId === actor.userId)))
         if ((plate && normalizePlate(v.plate).includes(plate)) || fold(v.brand + ' ' + v.model).includes(term) || v.vin.toLowerCase().includes(term))
           found.push({ key: 'v' + v.id, group: 'Araçlar', icon: 'car', label: v.plate, title: <Plate value={v.plate} size="sm" />, sub: `${v.brand} ${v.model} · ${v.year}`, run: go(detailHref('/araclar/detay', v.id)) });
       if (can(actor, 'customer.write')) for (const c of state.customers)
@@ -162,14 +149,14 @@ function CommandPalette({ groups }: { groups: [string, NavItem[]][] }) {
           found.push({ key: 'c' + c.id, group: 'Müşteriler', icon: 'user', label: c.name, title: <b>{c.name}</b>, sub: `${c.no} · ${c.phone}`, run: go(detailHref('/musteriler/detay', c.id)) });
     }
     const actions: PaletteItem[] = [];
-    if (can(actor, 'job.create')) actions.push({ key: 'a-intake', group: 'Komutlar', icon: 'plus', label: 'Yeni araç kabul iş emri', title: 'Yeni araç kabul', sub: 'İş emri aç', run: go('/is-emirleri?yeni=1') });
+    if (can(actor, 'job.create')) actions.push({ key: 'a-intake', group: 'Komutlar', icon: 'plus', label: 'Yeni araç kabul iş emri', title: 'Yeni araç kabul', sub: 'İş emri aç', run: onNewJob });
     if (can(actor, 'appointment.manage')) actions.push({ key: 'a-appt', group: 'Komutlar', icon: 'calendar', label: 'Randevu takvimi', title: 'Randevu takvimini aç', run: go('/randevular') });
     actions.push({ key: 'a-theme', group: 'Komutlar', icon: 'moon', label: 'Tema açık koyu karanlık', title: 'Açık/koyu temaya geç', run: () => setTheme() });
     actions.push({ key: 'a-out', group: 'Komutlar', icon: 'logout', label: 'Oturumu kapat çıkış', title: 'Oturumu kapat', run: () => { void logout().then(() => router.replace('/giris')) } });
     const pages: PaletteItem[] = groups.flatMap(([g, entries]) => entries.map(i => ({ key: 'p' + i.href, group: 'Sayfalar', icon: i.icon, label: i.label, title: i.label, sub: g, run: go(i.href) })));
     const match = (i: PaletteItem) => !term || fold(i.label + ' ' + (i.sub ?? '')).includes(term);
     return [...found.slice(0, 12), ...actions.filter(match), ...pages.filter(match)];
-  }, [state, actor, q, groups, router, logout]);
+  }, [state, actor, q, groups, router, logout, onNewJob]);
   useEffect(() => { list.current?.querySelector('.cmdk-item.on')?.scrollIntoView({ block: 'nearest' }) }, [sel]);
   const choose = (i?: PaletteItem) => { if (!i) return; setOpen(false); i.run() };
   const rows: React.ReactNode[] = [];
@@ -181,7 +168,7 @@ function CommandPalette({ groups }: { groups: [string, NavItem[]][] }) {
   });
   return <>
     <button type="button" className="global-search" onClick={() => setOpen(true)} aria-label="Ara veya komut çalıştır">
-      <Icon name="search" size={15} /><span>Plaka, iş emri, müşteri ara veya komut çalıştır</span><kbd>Ctrl K</kbd>
+      <Icon name="search" size={19} /><span>Plaka, müşteri veya iş emri ara…</span><kbd>Ctrl K</kbd>
     </button>
     <dialog ref={ref} className="cmdk" aria-label="Komut paleti" onClose={() => setOpen(false)} onClick={e => { if (e.target === ref.current) setOpen(false) }}>
       {open && <>
