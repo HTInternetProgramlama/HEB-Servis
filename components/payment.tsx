@@ -5,6 +5,7 @@ import { Button, Field, FormError, Modal } from './ui';
 import { Icon } from './icons';
 import { ShareSheet } from './share-sheet';
 import { balance, recordPayment } from '@/lib/commands';
+import { recordPayment as checkPayment } from '@/lib/rules';
 import { money, moneyInput, parseMoney, plateText, uid } from '@/lib/format';
 import { receiptMessage } from '@/lib/share';
 import type { Job, PaymentMethod } from '@/lib/types';
@@ -36,7 +37,7 @@ export function PaymentForm({ open, onClose, job }: { open: boolean; onClose: ()
     try {
       const amount = parseMoney(String(f.get('amount')));
       // Animasyondan önce kuralı kuru çalıştır: hatalı tutarda cihaz hiç açılmaz.
-      recordPayment(state, { userId: 'dry', name: 'dry', role: 'advisor' }, job.id, { key: key + '-dry', amount, method, note: '' });
+      checkPayment(state, { userId: 'dry', name: 'dry', role: 'advisor' }, job.id, { key: key + '-dry', amount, method, note: '' });
       setDraft({ amount, method, note: String(f.get('note') ?? ''), at: new Date().toISOString(), auth: digits(6), ref: digits(12), last4: digits(4) });
       setPhase('device');
     } catch (err) { setError(err instanceof Error ? err.message : 'Tutar geçersiz.') }

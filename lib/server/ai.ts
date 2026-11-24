@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { db, readState } from './database';
 import { fail } from './errors';
 import { visibleState } from './service';
-import { can } from '../rules';
+import { amountDue, approvedEstimate, balance, can, estimateTotals, latestEstimate, lineTotals, serviceName, staffName, technicians } from '../rules';
+import { plateText, today } from '../format';
 import { generateTechnicalDraft, type Suggestion, type TechnicalInput } from '../advisor';
 import type { Actor } from '../types';
 
@@ -40,10 +41,10 @@ function anthropic() {
 }
 export const aiConfigured = () => anthropic() !== null;
 
-async function record(actor: Actor, row: { engine: string; model?: string; input?: number; output?: number; ms: number; ok: boolean; error?: string }) {
+async function record(actor: Actor, row: { feature?: string; engine: string; model?: string; input?: number; output?: number; ms: number; ok: boolean; error?: string }) {
   try {
     await db().query('insert into ai_requests(user_id,feature,engine,model,input_tokens,output_tokens,duration_ms,ok,error) values($1,$2,$3,$4,$5,$6,$7,$8,$9)',
-      [actor.userId, 'technical-draft', row.engine, row.model ?? null, row.input ?? 0, row.output ?? 0, row.ms, row.ok, row.error ?? null]);
+      [actor.userId, row.feature ?? 'technical-draft', row.engine, row.model ?? null, row.input ?? 0, row.output ?? 0, row.ms, row.ok, row.error ?? null]);
   } catch { console.error('Yapay zekâ çağrı kaydı yazılamadı.'); }
 }
 
@@ -111,4 +112,151 @@ export async function aiUsage(actor: Actor) {
     coalesce(sum(input_tokens),0)::int as input, coalesce(sum(output_tokens),0)::int as output, coalesce(avg(duration_ms),0)::int as avg_ms
     from ai_requests where engine='claude' and at > now() - interval '30 days'`);
   return { configured: aiConfigured(), model: AI_MODEL, ...r.rows[0] };
+}
+
+/* ───────── Ortak çağrı: kota, kayıt, hata eşleme ───────── */
+type Outcome<T> = { ok: true; data: T; engine: string } | { ok: false; notice: string };
+async function callClaude<T>(actor: Actor, feature: string, system: string, prompt: string, schema: z.ZodType<T>, maxTokens = 3000): Promise<Outcome<T>> {
+  const ai = anthropic();
+  if (!ai) return { ok: false, notice: 'Yapay zekâ anahtarı tanımlı değil; şablon/kural motoru kullanıldı.' };
+  const used = await db().query("select count(*)::int as n from ai_requests where user_id=$1 and engine='claude' and at > now() - interval '1 day'", [actor.userId]);
+  if (used.rows[0].n >= DAILY_LIMIT) return { ok: false, notice: `Günlük yapay zekâ kotası (${DAILY_LIMIT}) doldu; şablon/kural motoru kullanıldı.` };
+  const started = Date.now();
+  try {
+    const response = await ai.messages.parse({
+      model: AI_MODEL, max_tokens: maxTokens, system,
+      output_config: { effort: 'low', format: zodOutputFormat(schema) },
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const usage = { feature, input: response.usage.input_tokens, output: response.usage.output_tokens, ms: Date.now() - started, model: response.model };
+    if (response.stop_reason === 'refusal' || !response.parsed_output) {
+      await record(actor, { engine: 'claude', ...usage, ok: false, error: response.stop_reason ?? 'parse' });
+      return { ok: false, notice: 'Yapay zekâ bu istek için cevap üretmedi; şablon/kural motoru kullanıldı.' };
+    }
+    await record(actor, { engine: 'claude', ...usage, ok: true });
+    return { ok: true, data: response.parsed_output as T, engine: `Claude (${response.model})` };
+  } catch (e) {
+    const status = e instanceof Anthropic.APIError ? e.status : undefined;
+    await record(actor, { feature, engine: 'claude', ms: Date.now() - started, ok: false, error: status ? `HTTP ${status}` : e instanceof Error ? e.name : 'error' });
+    const why = e instanceof Anthropic.RateLimitError ? 'Yapay zekâ servisi yoğun' : e instanceof Anthropic.AuthenticationError ? 'Yapay zekâ anahtarı geçersiz' : 'Yapay zekâ servisine ulaşılamadı';
+    return { ok: false, notice: `${why}; şablon/kural motoru kullanıldı.` };
+  }
+}
+
+const TL = (k: number) => (k / 100).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
+const fmtDay = (iso: string) => new Date(iso).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+/** Personelin görebileceği durum: bağlı mı, bugün kaç çağrı yapıldı. */
+export async function aiStatus(actor: Actor) {
+  if (!can(actor, 'inspection.write')) return fail(403, 'Bu işlem için yetkiniz yok.');
+  const r = await db().query("select count(*)::int as n from ai_requests where user_id=$1 and engine='claude' and at > now() - interval '1 day'", [actor.userId]);
+  return { configured: aiConfigured(), model: AI_MODEL, usedToday: r.rows[0].n as number, limit: DAILY_LIMIT };
+}
+
+/* ───────── 1) Atölye verisine soru ───────── */
+const Answer = z.object({
+  answer: z.string().describe('Soruya doğrudan, 2-5 cümlelik Türkçe cevap. Rakamları verilen veriden al.'),
+  highlights: z.array(z.string()).describe('Cevabı destekleyen en fazla 4 kısa madde (rakamlı).'),
+  actions: z.array(z.string()).describe('Servis müdürü için en fazla 3 somut öneri.'),
+});
+type St = Awaited<ReturnType<typeof readState>>['state'];
+function snapshotFacts(state: St) {
+  const day = today();
+  const openJobs = state.jobs.filter(j => !['Teslim edildi', 'İptal'].includes(j.status));
+  const since = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString() };
+  const delivered30 = state.jobs.filter(j => j.deliveredAt && j.deliveredAt >= since(30));
+  const pay30 = state.jobs.flatMap(j => j.payments).filter(p => p.at >= since(30));
+  const pending = state.jobs.filter(j => latestEstimate(j)?.status === 'Gönderildi');
+  return [
+    `Bugün: ${day}. Şube: ${state.settings.company.branch}.`,
+    `Açık iş emri: ${openJobs.length}. Durumlara göre: ${[...new Set(openJobs.map(j => j.status))].map(s => `${s} ${openJobs.filter(j => j.status === s).length}`).join(', ') || 'yok'}.`,
+    `Geciken açık iş (söz verilen saat geçti): ${openJobs.filter(j => j.status !== 'Teslime hazır' && new Date(j.promisedAt) < new Date()).length}.`,
+    `Son 30 gün: teslim ${delivered30.length}, işlem tutarı ${TL(delivered30.reduce((s, j) => s + amountDue(j), 0))}, tahsilat ${TL(pay30.reduce((s, p) => s + p.amount, 0))}.`,
+    `Son 30 gün hizmet kırılımı: ${state.settings.services.map(sv => { const js = delivered30.filter(j => j.serviceId === sv.id); return js.length ? `${sv.name} ${js.length} iş / ${TL(js.reduce((s, j) => s + amountDue(j), 0))}` : '' }).filter(Boolean).join('; ') || 'yok'}.`,
+    `Teknisyen yükü (açık iş / son 30 gün teslim): ${technicians(state).map(t => `${t.name} ${openJobs.filter(j => j.technicianId === t.id).length}/${delivered30.filter(j => j.technicianId === t.id).length}`).join(', ')}.`,
+    `Onay bekleyen teklif: ${pending.length} adet, toplam ${TL(pending.reduce((s, j) => s + estimateTotals(latestEstimate(j)!).total, 0))}.`,
+    `Açık bakiye: ${TL(state.jobs.filter(j => j.status !== 'İptal').reduce((s, j) => s + Math.max(0, balance(j)), 0))}.`,
+    `Bekleyen randevu talebi: ${state.appointments.filter(a => a.status === 'Bekliyor').length}; bugünkü randevu: ${state.appointments.filter(a => a.date === day && a.status !== 'İptal').length}.`,
+    'Açık işler (no | araç | hizmet | durum | teknisyen | söz verilen teslim):',
+    ...openJobs.slice(0, 25).map(j => { const v = state.vehicles.find(x => x.id === j.vehicleId); return `- ${j.no} | ${v ? `${v.brand} ${v.model} ${v.year}` : '?'} | ${serviceName(state, j.serviceId)} | ${j.status} | ${staffName(state, j.technicianId)} | ${fmtDay(j.promisedAt)}` }),
+  ];
+}
+async function ask(actor: Actor, question: unknown) {
+  if (!can(actor, 'reports.read')) return fail(403, 'Bu işlem için yetkiniz yok.');
+  if (typeof question !== 'string' || question.trim().length < 4 || question.length > 500) return fail(400, 'Soru 4-500 karakter olmalı.');
+  const { state } = await readState();
+  const facts = snapshotFacts(state);
+  const out = await callClaude(actor, 'ask', `Sen bir araç servisinin operasyon asistanısın. Yalnız verilen özet veriye dayanarak Türkçe cevap ver.
+Veride olmayan bir şeyi uydurma; bilinmiyorsa açıkça söyle. Müşteri kişisel verisi sana verilmez ve isteme. Kısa ve iş odaklı yaz.`, `Atölye verisi:\n${facts.join('\n')}\n\nSoru: """${question.trim()}"""`, Answer, 1500);
+  if (out.ok) return { ...out.data, engine: out.engine, ai: true };
+  return { answer: 'Yapay zekâ bağlı olmadığı için soruyu yorumlayamadım; atölyenin güncel özeti aşağıda.', highlights: facts.slice(1, 9), actions: [], engine: 'Özet motoru', ai: false, notice: out.notice };
+}
+
+/* ───────── 2) Müşteri mesajı ───────── */
+const purposes = { teklif: 'Teklif hazırlandı, onay bekleniyor', hazir: 'Araç teslime hazır', parca: 'Parça bekleniyor, teslim gecikebilir', bakim: 'Periyodik bakım zamanı yaklaştı', durum: 'İşlem durumu bilgilendirmesi' } as const;
+const Message = z.object({ message: z.string().describe('Gönderime hazır mesaj. Müşteri adı yerine {MUSTERI} yer tutucusunu kullan.') });
+function templateMessage(purpose: keyof typeof purposes, f: { car: string; plate: string; total?: string; promised: string; company: string; phone: string; balance?: string }) {
+  const hi = 'Merhaba {MUSTERI},';
+  const t = {
+    teklif: `${hi} ${f.plate} plakalı ${f.car} aracınızın servis teklifi hazırlandı${f.total ? ` (${f.total})` : ''}. Teklifi müşteri portalından inceleyip onaylayabilirsiniz. Sorularınız için: ${f.phone}. ${f.company}`,
+    hazir: `${hi} ${f.plate} plakalı ${f.car} aracınızın işlemleri tamamlandı, teslime hazırdır.${f.balance ? ` Ödenecek tutar: ${f.balance}.` : ''} Çalışma saatlerimizde teslim alabilirsiniz. ${f.company} · ${f.phone}`,
+    parca: `${hi} ${f.plate} plakalı ${f.car} aracınız için gereken parça tedarikçiden bekleniyor. Parça gelir gelmez işleme devam edip sizi bilgilendireceğiz. Anlayışınız için teşekkür ederiz. ${f.company} · ${f.phone}`,
+    bakim: `${hi} ${f.plate} plakalı ${f.car} aracınızın periyodik bakım zamanı yaklaşıyor. Size uygun gün ve saat için randevu oluşturmak isterseniz bize ulaşabilirsiniz: ${f.phone}. ${f.company}`,
+    durum: `${hi} ${f.plate} plakalı ${f.car} aracınız serviste işlemdedir. Tahmini teslim: ${f.promised}. Gelişmeleri size bildireceğiz. ${f.company} · ${f.phone}`,
+  };
+  return t[purpose];
+}
+async function message(actor: Actor, body: Record<string, unknown>) {
+  if (!can(actor, 'estimate.write')) return fail(403, 'Bu işlem için yetkiniz yok.');
+  const purpose = String(body.purpose) as keyof typeof purposes;
+  if (!(purpose in purposes)) return fail(400, 'Geçersiz mesaj amacı.');
+  const channel = ['SMS', 'WhatsApp', 'E-posta'].includes(String(body.channel)) ? String(body.channel) : 'SMS';
+  const tone = body.tone === 'Samimi' ? 'samimi' : 'resmî';
+  const { state } = await readState();
+  const job = state.jobs.find(j => j.id === body.jobId);
+  const vehicle = job && state.vehicles.find(v => v.id === job.vehicleId);
+  if (!job || !vehicle) return fail(404, 'İş emri bulunamadı.');
+  const est = latestEstimate(job);
+  const f = { car: `${vehicle.brand} ${vehicle.model}`, plate: plateText(vehicle.plate), total: est && est.status !== 'Taslak' ? TL(estimateTotals(est).total) : undefined, promised: fmtDay(job.promisedAt), company: state.settings.company.name, phone: state.settings.company.phone, balance: approvedEstimate(job) && balance(job) > 0 ? TL(balance(job)) : undefined };
+  const limit = channel === 'SMS' ? 'en fazla 320 karakter' : channel === 'WhatsApp' ? 'en fazla 500 karakter, emoji kullanma' : 'konu satırı olmadan, 2 kısa paragraf';
+  const out = await callClaude(actor, 'message', `Araç servisi adına müşteriye gidecek kısa bir ${channel} mesajı yaz. Türkçe, ${tone} üslup.
+Kurallar: müşteri adı yerine {MUSTERI} yaz; verilen bilgiler dışında tarih, tutar veya söz verme; satış baskısı yapma; ${limit}; servis adı ve telefonla bitir.`,
+    [`Amaç: ${purposes[purpose]}`, `Araç: ${f.car}, plaka ${f.plate}`, `İş durumu: ${job.status}`, `Tahmini teslim: ${f.promised}`, f.total ? `Teklif toplamı: ${f.total}` : '', f.balance ? `Kalan bakiye: ${f.balance}` : '', `Servis: ${f.company}, telefon ${f.phone}`].filter(Boolean).join('\n'), Message, 800);
+  if (out.ok) return { message: out.data.message.slice(0, 1200), engine: out.engine, ai: true };
+  return { message: templateMessage(purpose, f), engine: 'Şablon', ai: false, notice: out.notice };
+}
+
+/* ───────── 3) Teklifi müşteri diline çevir ───────── */
+const Plain = z.object({
+  intro: z.string().describe('Müşteriye 1-2 cümlelik giriş.'),
+  items: z.array(z.object({ name: z.string(), plain: z.string().describe('Kalemin ne olduğu, teknik olmayan dille tek cümle.'), why: z.string().describe('Neden gerektiği, tek cümle; bulgulara dayan.'), urgency: z.enum(['Hemen', 'Yakında', 'Planlı']) })),
+  closing: z.string().describe('Kısa kapanış; kararın müşteriye ait olduğunu belirt.'),
+});
+async function explain(actor: Actor, jobId: unknown) {
+  if (!can(actor, 'estimate.write')) return fail(403, 'Bu işlem için yetkiniz yok.');
+  const { state } = await readState();
+  const job = state.jobs.find(j => j.id === jobId);
+  const est = job && (approvedEstimate(job) ?? latestEstimate(job));
+  const vehicle = job && state.vehicles.find(v => v.id === job.vehicleId);
+  if (!job || !est || !vehicle) return fail(404, 'Bu iş emrinde teklif bulunamadı.');
+  const findings = job.inspections.filter(i => i.result !== 'Uygun').map(i => `${i.item} (${i.result})`);
+  const lines = est.lines.map(l => `- ${l.name} | ${l.kind} | ${TL(lineTotals(l).net)}`);
+  const total = estimateTotals(est).total;
+  const out = await callClaude(actor, 'explain', `Araç servisinde teknik teklif kalemlerini, teknik bilgisi olmayan bir araç sahibine açıklıyorsun. Türkçe, sade, dürüst ve kısa yaz.
+Korkutma, satış baskısı yapma. Aciliyeti yalnız bulgulara göre belirle: güvenlikle ilgili 'Acil' bulgu varsa 'Hemen', 'Takip edilmeli' ise 'Yakında', diğerleri 'Planlı'.`,
+    `Araç: ${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${job.intake.km} km\nTeklif kalemleri:\n${lines.join('\n')}\nMuayene bulguları: ${findings.join('; ') || 'yok'}\nTeklif toplamı: ${TL(total)}`, Plain, 2500);
+  if (out.ok) return { ...out.data, total, version: est.version, engine: out.engine, ai: true };
+  return {
+    intro: `${vehicle.brand} ${vehicle.model} aracınız için hazırlanan teklifteki kalemler aşağıda sade bir dille özetlenmiştir.`,
+    items: est.lines.map(l => ({ name: l.name, plain: l.kind === 'İşçilik' ? 'Ustalarımızın bu iş için harcayacağı çalışma süresi.' : 'Aracınıza takılacak yeni parça veya sarf malzemesi.', why: findings.length ? `Muayenede görülen bulgular: ${findings.slice(0, 2).join(', ')}.` : 'Periyodik bakım kapsamında önerilmektedir.', urgency: job.inspections.some(i => i.result === 'Acil') ? 'Yakında' as const : 'Planlı' as const })),
+    closing: 'Kalemlerden hangisinin yapılacağına siz karar verirsiniz; sorularınızı servis danışmanınıza iletebilirsiniz.',
+    total, version: est.version, engine: 'Şablon', ai: false, notice: out.notice,
+  };
+}
+
+export async function assist(actor: Actor, body: Record<string, unknown>) {
+  if (body.task === 'ask') return ask(actor, body.question);
+  if (body.task === 'message') return message(actor, body);
+  if (body.task === 'explain') return explain(actor, body.jobId);
+  return fail(400, 'Geçersiz yapay zekâ görevi.');
 }

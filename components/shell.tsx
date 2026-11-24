@@ -7,6 +7,7 @@ import { useStore } from './store';
 import { Icon, type IconName } from './icons';
 import { Avatar } from './ui';
 import { Plate } from './vehicle-identity';
+import { DriftLoader } from './car-art';
 import { can, dueReminders, roleLabel, type Permission } from '@/lib/rules';
 import { fmtLongDate, fold, normalizePlate, today } from '@/lib/format';
 
@@ -20,7 +21,7 @@ export function Logo({ light }: { light?: boolean }) {
 }
 
 export function Loading() {
-  return <div className="boot"><Logo /><span className="boot-bar" aria-hidden="true" /><span className="small">Yükleniyor…</span></div>;
+  return <div className="boot"><Logo /><DriftLoader label="Atölye hazırlanıyor…" /></div>;
 }
 
 export function StaffShell({ children }: { children: React.ReactNode }) {
@@ -54,6 +55,7 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
       { href: '/atolye', label: 'Atölye panosu', icon: 'board', tech: true },
       { href: '/is-emirleri', label: 'İş emirleri', icon: 'wrench', tech: true },
       { href: '/teklifler', label: 'Teklif onayları', icon: 'receipt', perm: 'estimate.write', badge: counts.approvals, hot: true },
+      { href: '/yapay-zeka', label: 'Yapay zekâ asistanı', icon: 'sparkle', perm: 'inspection.write' },
     ]],
     ['Kayıtlar', [
       { href: '/musteriler', label: 'Müşteriler', icon: 'users', perm: 'customer.write' },
@@ -96,7 +98,6 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
         <CommandPalette groups={visible} />
         <div className="top-right">
           <span className="top-date">{fmtLongDate(today())}</span>
-          <span className="env-chip" title="Veriler PostgreSQL veritabanında saklanır; oturumlar Supabase Auth ile doğrulanır.">Canlı</span>
           <ThemeToggle />
         </div>
       </header>

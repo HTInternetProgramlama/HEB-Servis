@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { findVehicleMedia } from '@/lib/vehicle-media';
 import { plateText } from '@/lib/format';
 import type { Vehicle } from '@/lib/types';
+import { CarArt } from './car-art';
 
 export function Plate({ value, size }: { value: string; size?: 'sm' | 'lg' }) {
   const text = plateText(value);
@@ -27,17 +28,20 @@ export function BrandMark({ brand }: { brand: string }) {
 }
 
 /** Modele özel çizim (fotoğraf değil). Katalogda olmayan modeller için boş durum gösterilir. */
-export function CarDrawing({ vehicle }: { vehicle: Pick<Vehicle, 'brand' | 'model' | 'year'> }) {
+export function CarDrawing({ vehicle }: { vehicle: Pick<Vehicle, 'brand' | 'model' | 'year'> & { color?: string } }) {
   const media = findVehicleMedia(vehicle);
   const [failed, setFailed] = useState('');
-  if (!media || failed === media.src) return <div className="drawing-missing"><span>{vehicle.brand} {vehicle.model}</span><small>Bu model için çizim bulunmuyor</small></div>;
+  if (!media || failed === media.src) return <figure className="drawing"><div className="drawing-crop drawing-svg"><CarArt vehicle={vehicle as Vehicle} /></div><figcaption>{vehicle.brand} {vehicle.model} · kasa tipine göre temsili çizim</figcaption></figure>;
   return <figure className="drawing">
     <div className="drawing-crop"><Image className={'drawing-atlas tile-' + media.tile} src={pagesBasePath + media.src} width={1536} height={1024} alt={media.label + ' — model çizimi'} sizes="(max-width: 700px) 180vw, 640px" onError={() => setFailed(media.src)} /></div>
     <figcaption>{media.label} · temsili model çizimi</figcaption>
   </figure>;
 }
 
-export function VehicleCell({ vehicle, sub }: { vehicle?: Vehicle; sub?: React.ReactNode }) {
+export function VehicleCell({ vehicle, sub, art = true }: { vehicle?: Vehicle; sub?: React.ReactNode; art?: boolean }) {
   if (!vehicle) return <span className="muted">Araç kaydı yok</span>;
-  return <div className="vehicle-cell"><Plate value={vehicle.plate} size="sm" /><div><strong>{vehicle.brand} {vehicle.model}</strong><small>{sub ?? `${vehicle.year} · ${vehicle.km.toLocaleString('tr-TR')} km`}</small></div></div>;
+  return <div className="vehicle-cell">
+    {art && <span className="car-thumb" aria-hidden="true"><CarArt vehicle={vehicle} /></span>}
+    <div><strong>{vehicle.brand} {vehicle.model}</strong><span className="vehicle-sub"><Plate value={vehicle.plate} size="sm" /><small>{sub ?? `${vehicle.year} · ${vehicle.km.toLocaleString('tr-TR')} km`}</small></span></div>
+  </div>;
 }

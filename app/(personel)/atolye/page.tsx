@@ -6,6 +6,7 @@ import { useApp } from '@/components/store';
 import { PageHeader } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { Plate } from '@/components/vehicle-identity';
+import { CarArt } from '@/components/car-art';
 import { allowedMoves, moveJob, serviceName, staffName, technicians } from '@/lib/commands';
 import { fmtTime, isoDay, today } from '@/lib/format';
 import type { JobStatus } from '@/lib/types';
@@ -30,7 +31,7 @@ export default function Workshop() {
     <div className="board">
       {columns.map(col => {
         const items = jobs.filter(j => col.statuses.includes(j.status));
-        return <section key={col.title} className="board-col">
+        return <section key={col.title} className={'board-col col-' + columns.indexOf(col)}>
           <header><span>{col.title}</span><em>{items.length}</em></header>
           <div className="board-items">
             {items.map(j => {
@@ -40,8 +41,10 @@ export default function Workshop() {
               return <article key={j.id} className={'board-card ' + (late ? 'late' : '')}>
                 <Link href={detailHref('/is-emirleri/detay', j.id)} className="board-link">
                   <div className="row-between"><span className="mono small strong">{j.no}</span>{j.status === 'Parça bekliyor' ? <span className="tag orange">Parça bekliyor</span> : late ? <span className="tag red">Gecikme</span> : null}</div>
+                  {v && <div className="board-art"><CarArt vehicle={v} /></div>}
                   {v && <div className="board-vehicle"><Plate value={v.plate} size="sm" /><span>{v.brand} {v.model}</span></div>}
                   <p className="board-complaint">{j.intake.complaint}</p>
+                  <Eta from={j.createdAt} to={j.promisedAt} />
                   <div className="board-meta"><span><Icon name="wrench" size={12} />{serviceName(state, j.serviceId)}</span><span><Icon name="user" size={12} />{staffName(state, j.technicianId).split(' ')[0]}</span><span><Icon name="clock" size={12} />{isoDay(j.promisedAt) === today() ? fmtTime(j.promisedAt) : new Date(j.promisedAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' })}</span></div>
                 </Link>
                 {moves.length > 0 && <div className="board-actions">{moves.map(m => <button key={m} className="btn sm" onClick={() => run((s, a) => moveJob(s, a, j.id, m), `${j.no} → ${m}`, j.no)}>{m} <Icon name="arrow" size={12} /></button>)}</div>}
@@ -53,4 +56,12 @@ export default function Workshop() {
       })}
     </div>
   </>;
+}
+
+/** Kabulden söz verilen teslime geçen sürenin oranı. */
+function Eta({ from, to }: { from: string; to: string }) {
+  const a = new Date(from).getTime(), b = new Date(to).getTime();
+  const p = Math.max(0, Math.min(1, (Date.now() - a) / Math.max(1, b - a)));
+  const tone = p >= 1 ? 'bad' : p > .75 ? 'warn' : 'ok';
+  return <div className={'eta ' + tone} title={`Söz verilen süreden %${Math.round(p * 100)} geçti`}><i style={{ width: `${p * 100}%` }} /></div>;
 }

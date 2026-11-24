@@ -5,7 +5,8 @@ import { useApp } from '@/components/store';
 import { Card, Empty, PageHeader, Stat, Status } from '@/components/ui';
 import { JobTable } from '@/components/job-table';
 import { Icon } from '@/components/icons';
-import { VehicleCell } from '@/components/vehicle-identity';
+import { Plate, VehicleCell } from '@/components/vehicle-identity';
+import { CarArt } from '@/components/car-art';
 import { amountDue, balance, estimateTotals, latestEstimate, resourceName, serviceName, staffName, technicians } from '@/lib/rules';
 import { addDays, fmtDate, fmtTime, isoDay, money, moneyShort, today } from '@/lib/format';
 import type { Job } from '@/lib/types';
@@ -67,6 +68,21 @@ export default function Overview() {
       <Stat label="Bugünkü tahsilat" value={moneyShort(todayCash)} foot={`${payments.filter(p => isoDay(p.at) === day).length} işlem`} href="/tahsilat" spark={series.slice(-7).map(s => s.value)} />
       <Stat label="Açık bakiye" value={moneyShort(openBalance)} foot="Onaylı iş − tahsilat" href="/tahsilat" />
     </div>
+
+    {open.length > 0 && <section className="garage" aria-label="Atölyedeki araçlar">
+      <header><div><h2>Atölye şu an</h2><p>{open.length} araç içeride · {open.filter(j => j.status === 'İşlemde').length} işlemde · {ready.length} teslime hazır</p></div><Link href="/atolye" className="btn sm">Panoya git <Icon name="arrow" size={13} /></Link></header>
+      <div className="garage-lane">{open.slice().sort((a, b) => a.promisedAt.localeCompare(b.promisedAt)).map(j => {
+        const veh = v(j.vehicleId);
+        const step = openStatuses.indexOf(j.status);
+        return <Link key={j.id} href={detailHref('/is-emirleri/detay', j.id)} className={'bay ' + (overdue(j) ? 'late' : '')}>
+          <div className="bay-art">{veh && <CarArt vehicle={veh} />}</div>
+          <div className="bay-info">{veh && <Plate value={veh.plate} size="sm" />}<Status value={j.status} /></div>
+          <strong>{veh ? `${veh.brand} ${veh.model}` : j.no}</strong>
+          <small>{staffName(state, j.technicianId)} · teslim {fmtDate(j.promisedAt, { day: '2-digit', month: '2-digit' })} {fmtTime(j.promisedAt)}</small>
+          <div className="bay-steps" aria-label={`Aşama ${step + 1} / ${openStatuses.length}`}>{openStatuses.map((st, i) => <i key={st} className={i < step ? 'done' : i === step ? 'now' : ''} />)}</div>
+        </Link>;
+      })}</div>
+    </section>}
 
     <div className="grid-main">
       <Card title="Bugünün randevuları" sub={fmtDate(day, { day: 'numeric', month: 'long', weekday: 'long' })} flush actions={<Link className="btn sm" href="/randevular">Takvime git</Link>}>
