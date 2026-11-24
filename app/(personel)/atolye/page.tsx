@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { useApp } from '@/components/store';
 import { PageHeader } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import { Plate } from '@/components/vehicle-identity';
-import { CarArt } from '@/components/car-art';
+import { CarImage, Plate } from '@/components/vehicle-identity';
 import { allowedMoves, moveJob, serviceName, staffName, technicians } from '@/lib/commands';
 import { fmtTime, isoDay, today } from '@/lib/format';
 import type { JobStatus } from '@/lib/types';
@@ -41,7 +40,7 @@ export default function Workshop() {
               return <article key={j.id} className={'board-card ' + (late ? 'late' : '')}>
                 <Link href={detailHref('/is-emirleri/detay', j.id)} className="board-link">
                   <div className="row-between"><span className="mono small strong">{j.no}</span>{j.status === 'Parça bekliyor' ? <span className="tag orange">Parça bekliyor</span> : late ? <span className="tag red">Gecikme</span> : null}</div>
-                  {v && <div className="board-art"><CarArt vehicle={v} /></div>}
+                  {v && <div className="board-art"><CarImage vehicle={v} /></div>}
                   {v && <div className="board-vehicle"><Plate value={v.plate} size="sm" /><span>{v.brand} {v.model}</span></div>}
                   <p className="board-complaint">{j.intake.complaint}</p>
                   <Eta from={j.createdAt} to={j.promisedAt} />

@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { useApp } from '@/components/store';
 import { Button, Card, Empty, PageHeader, Status } from '@/components/ui';
 import { Icon, type IconName } from '@/components/icons';
-import { CarArt, RoadLoader } from '@/components/car-art';
-import { Plate } from '@/components/vehicle-identity';
+import { RoadLoader } from '@/components/car-art';
+import { CarImage, Plate } from '@/components/vehicle-identity';
 import { can, latestEstimate, serviceName } from '@/lib/rules';
 import { detailHref } from '@/lib/routes';
 import { money } from '@/lib/format';
@@ -48,7 +48,7 @@ export default function AiPage() {
         <p>{status?.configured ? `${status.model} modeli kullanılıyor. Bugün ${status.usedToday} / ${status.limit} çağrı yaptınız.` : 'Anahtar tanımlanana kadar her araç, kural ve şablon motoruyla yine çalışır; ekranda hangi motorun cevap verdiği yazar.'}</p>
         {status?.configured && <div className="quota"><i style={{ width: `${Math.min(100, status.usedToday / status.limit * 100)}%` }} /></div>}
       </div>
-      <div className="ai-hero-art" aria-hidden="true"><div className="scan" /><CarArt color="#d9480f" type="hatch" /></div>
+      <div className="ai-hero-art" aria-hidden="true"><div className="scan" /><CarImage vehicle={{ brand: 'Volkswagen', model: 'Golf', year: 2022 }} eager /></div>
       {usage && <dl className="ai-usage">
         <div><dt>30 gün çağrı</dt><dd>{usage.calls}</dd></div>
         <div><dt>Başarılı</dt><dd>{usage.calls ? `%${Math.round(usage.ok / usage.calls * 100)}` : '—'}</dd></div>
@@ -84,7 +84,7 @@ function JobPicker({ jobs, value, onChange }: { jobs: Job[]; value: string; onCh
   return <div className="job-pick" role="radiogroup" aria-label="İş emri seçin">{jobs.map(j => {
     const v = state.vehicles.find(x => x.id === j.vehicleId);
     return <button key={j.id} role="radio" aria-checked={value === j.id} className={value === j.id ? 'active' : ''} onClick={() => onChange(j.id)}>
-      <span className="jp-art">{v && <CarArt vehicle={v} />}</span>
+      <span className="jp-art">{v && <CarImage vehicle={v} />}</span>
       <span className="jp-text"><b>{v ? `${v.brand} ${v.model}` : j.no}</b><span>{v && <Plate value={v.plate} size="sm" />}<small className="mono">{j.no}</small></span></span>
       <Status value={j.status} />
     </button>;

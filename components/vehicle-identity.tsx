@@ -1,11 +1,8 @@
 'use client';
 import { pagesBasePath } from '@/lib/routes';
-import { useState } from 'react';
-import Image from 'next/image';
-import { findVehicleMedia } from '@/lib/vehicle-media';
+import { vehicleImage } from '@/lib/vehicle-media';
 import { plateText } from '@/lib/format';
 import type { Vehicle } from '@/lib/types';
-import { CarArt } from './car-art';
 
 export function Plate({ value, size }: { value: string; size?: 'sm' | 'lg' }) {
   const text = plateText(value);
@@ -27,21 +24,26 @@ export function BrandMark({ brand }: { brand: string }) {
   return <span className="brand-mark" title={brand}><svg viewBox="0 0 48 48" role="img" aria-label={`${brand}`} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round">{mark}</svg></span>;
 }
 
-/** Modele özel çizim (fotoğraf değil). Katalogda olmayan modeller için boş durum gösterilir. */
-export function CarDrawing({ vehicle }: { vehicle: Pick<Vehicle, 'brand' | 'model' | 'year'> & { color?: string } }) {
-  const media = findVehicleMedia(vehicle);
-  const [failed, setFailed] = useState('');
-  if (!media || failed === media.src) return <figure className="drawing"><div className="drawing-crop drawing-svg"><CarArt vehicle={vehicle as Vehicle} /></div><figcaption>{vehicle.brand} {vehicle.model} · kasa tipine göre temsili çizim</figcaption></figure>;
+/** Araç görseli: modele özel illüstrasyon, yoksa kasa tipine göre markasız çizim. */
+export function CarImage({ vehicle, className, eager }: { vehicle: Pick<Vehicle, 'brand' | 'model' | 'year'>; className?: string; eager?: boolean }) {
+  const img = vehicleImage(vehicle);
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img className={'car-img ' + (img.generic ? 'generic ' : '') + (className ?? '')} src={pagesBasePath + img.src} width={720} height={480} alt={img.generic ? '' : `${vehicle.brand} ${img.label}`} loading={eager ? 'eager' : 'lazy'} decoding="async" draggable={false} />;
+}
+
+/** Büyük araç görseli ve açıklaması (iş emri, araç kartı, portal). */
+export function CarDrawing({ vehicle }: { vehicle: Pick<Vehicle, 'brand' | 'model' | 'year'> }) {
+  const img = vehicleImage(vehicle);
   return <figure className="drawing">
-    <div className="drawing-crop"><Image className={'drawing-atlas tile-' + media.tile} src={pagesBasePath + media.src} width={1536} height={1024} alt={media.label + ' — model çizimi'} sizes="(max-width: 700px) 180vw, 640px" onError={() => setFailed(media.src)} /></div>
-    <figcaption>{media.label} · temsili model çizimi</figcaption>
+    <div className="drawing-stage"><CarImage vehicle={vehicle} eager /></div>
+    <figcaption>{img.generic ? `${vehicle.brand} ${vehicle.model} · bu model için çizim yok, genel ${img.label.toLocaleLowerCase('tr')} çizimi` : `${img.label} · temsili model çizimi`}</figcaption>
   </figure>;
 }
 
 export function VehicleCell({ vehicle, sub, art = true }: { vehicle?: Vehicle; sub?: React.ReactNode; art?: boolean }) {
   if (!vehicle) return <span className="muted">Araç kaydı yok</span>;
   return <div className="vehicle-cell">
-    {art && <span className="car-thumb" aria-hidden="true"><CarArt vehicle={vehicle} /></span>}
+    {art && <span className="car-thumb" aria-hidden="true"><CarImage vehicle={vehicle} /></span>}
     <div><strong>{vehicle.brand} {vehicle.model}</strong><span className="vehicle-sub"><Plate value={vehicle.plate} size="sm" /><small>{sub ?? `${vehicle.year} · ${vehicle.km.toLocaleString('tr-TR')} km`}</small></span></div>
   </div>;
 }

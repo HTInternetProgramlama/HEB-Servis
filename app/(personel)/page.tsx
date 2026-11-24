@@ -5,8 +5,7 @@ import { useApp } from '@/components/store';
 import { Card, Empty, PageHeader, Stat, Status } from '@/components/ui';
 import { JobTable } from '@/components/job-table';
 import { Icon } from '@/components/icons';
-import { Plate, VehicleCell } from '@/components/vehicle-identity';
-import { CarArt } from '@/components/car-art';
+import { CarImage, Plate, VehicleCell } from '@/components/vehicle-identity';
 import { amountDue, balance, estimateTotals, latestEstimate, resourceName, serviceName, staffName, technicians } from '@/lib/rules';
 import { addDays, fmtDate, fmtTime, isoDay, money, moneyShort, today } from '@/lib/format';
 import type { Job } from '@/lib/types';
@@ -75,7 +74,7 @@ export default function Overview() {
         const veh = v(j.vehicleId);
         const step = openStatuses.indexOf(j.status);
         return <Link key={j.id} href={detailHref('/is-emirleri/detay', j.id)} className={'bay ' + (overdue(j) ? 'late' : '')}>
-          <div className="bay-art">{veh && <CarArt vehicle={veh} />}</div>
+          <div className="bay-art">{veh && <CarImage vehicle={veh} />}</div>
           <div className="bay-info">{veh && <Plate value={veh.plate} size="sm" />}<Status value={j.status} /></div>
           <strong>{veh ? `${veh.brand} ${veh.model}` : j.no}</strong>
           <small>{staffName(state, j.technicianId)} · teslim {fmtDate(j.promisedAt, { day: '2-digit', month: '2-digit' })} {fmtTime(j.promisedAt)}</small>
