@@ -64,7 +64,7 @@ export default function Overview() {
       <Stat label="Atölyedeki araç" value={open.length} foot={`${open.filter(overdue).length} gecikmede`} tone={open.some(overdue) ? 'bad' : undefined} href="/atolye" />
       <Stat label="Onay bekleyen teklif" value={pendingEstimates.length} foot={money(pendingValue)} tone={pendingEstimates.length ? 'warn' : undefined} href="/teklifler" />
       <Stat label="Teslime hazır" value={ready.length} foot={money(ready.reduce((s, j) => s + Math.max(0, balance(j)), 0)) + ' tahsil edilecek'} href="/atolye" />
-      <Stat label="Bugünkü tahsilat" value={moneyShort(todayCash)} foot={`${payments.filter(p => isoDay(p.at) === day).length} işlem`} href="/tahsilat" />
+      <Stat label="Bugünkü tahsilat" value={moneyShort(todayCash)} foot={`${payments.filter(p => isoDay(p.at) === day).length} işlem`} href="/tahsilat" spark={series.slice(-7).map(s => s.value)} />
       <Stat label="Açık bakiye" value={moneyShort(openBalance)} foot="Onaylı iş − tahsilat" href="/tahsilat" />
     </div>
 

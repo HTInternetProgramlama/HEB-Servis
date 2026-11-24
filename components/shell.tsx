@@ -10,17 +10,17 @@ import { Plate } from './vehicle-identity';
 import { can, dueReminders, roleLabel, type Permission } from '@/lib/rules';
 import { fmtLongDate, fold, normalizePlate, today } from '@/lib/format';
 
-interface NavItem { href: string; label: string; icon: IconName; perm?: Permission; badge?: number; tech?: boolean }
+interface NavItem { href: string; label: string; icon: IconName; perm?: Permission; badge?: number; tech?: boolean; hot?: boolean }
 
 export function Logo({ light }: { light?: boolean }) {
   return <span className={'logo ' + (light ? 'light' : '')}>
-    <svg className="logo-mark" viewBox="0 0 48 48" width="34" height="34" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#e8590c" /><path d="M11 12h7v11h12V12h7v24h-7v-7H18v7h-7Z" fill="#fff" /><path d="M23 11h2v6h-2zm0 22h2v5h-2z" fill="#fff" opacity=".65" /></svg>
+    <svg className="logo-mark" viewBox="0 0 48 48" width="32" height="32" aria-hidden="true"><rect width="48" height="48" rx="12" fill="var(--accent, #d9480f)" /><path d="M11 12h7v11h12V12h7v24h-7v-7H18v7h-7Z" fill="#fff" /><path d="M23 11h2v6h-2zm0 22h2v5h-2z" fill="#fff" opacity=".65" /></svg>
     <span className="logo-text"><b>HEB</b> Servis</span>
   </span>;
 }
 
 export function Loading() {
-  return <div className="boot"><Logo /><span>Yükleniyor…</span></div>;
+  return <div className="boot"><Logo /><span className="boot-bar" aria-hidden="true" /><span className="small">Yükleniyor…</span></div>;
 }
 
 export function StaffShell({ children }: { children: React.ReactNode }) {
@@ -50,10 +50,10 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
   const groups: [string, NavItem[]][] = [
     ['Operasyon', [
       { href: '/', label: 'Genel bakış', icon: 'dashboard', tech: true },
-      { href: '/randevular', label: 'Randevu takvimi', icon: 'calendar', perm: 'appointment.manage', badge: counts.requests },
+      { href: '/randevular', label: 'Randevu takvimi', icon: 'calendar', perm: 'appointment.manage', badge: counts.requests, hot: true },
       { href: '/atolye', label: 'Atölye panosu', icon: 'board', tech: true },
       { href: '/is-emirleri', label: 'İş emirleri', icon: 'wrench', tech: true },
-      { href: '/teklifler', label: 'Teklif onayları', icon: 'receipt', perm: 'estimate.write', badge: counts.approvals },
+      { href: '/teklifler', label: 'Teklif onayları', icon: 'receipt', perm: 'estimate.write', badge: counts.approvals, hot: true },
     ]],
     ['Kayıtlar', [
       { href: '/musteriler', label: 'Müşteriler', icon: 'users', perm: 'customer.write' },
@@ -75,28 +75,29 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
 
   return <div className={'shell ' + (menu ? 'menu-open' : '')}>
     <aside className="sidebar">
-      <div className="side-top"><Link href="/" aria-label="Genel bakış"><Logo light /></Link></div>
+      <div className="side-top"><Link href="/" aria-label="Genel bakış"><Logo /></Link></div>
       <div className="side-branch"><Icon name="building" size={15} /><div><strong>{state.settings.company.branch}</strong><small>{state.settings.company.address.split(',').at(-1)?.trim()}</small></div></div>
       <nav className="side-nav">
         {visible.map(([g, items]) => <div key={g} className="side-group"><span className="side-label">{g}</span>
           {items.map(i => <Link key={i.href} href={i.href} className={'side-link ' + (active(i.href) ? 'active' : '')} aria-current={active(i.href) ? 'page' : undefined}>
-            <Icon name={i.icon} size={16} /><span>{i.label}</span>{!!i.badge && <em className="side-badge">{i.badge}</em>}
+            <Icon name={i.icon} size={16} /><span>{i.label}</span>{!!i.badge && <em className={'side-badge ' + (i.hot ? 'hot' : '')}>{i.badge}</em>}
           </Link>)}
         </div>)}
       </nav>
       <div className="side-foot">
         <div className="side-user"><Avatar name={actor.name} size={30} /><div><strong>{actor.name}</strong><small>{roleLabel[actor.role]}</small></div>
-          <button className="icon-btn dark" onClick={async () => { await logout(); router.replace('/giris') }} aria-label="Oturumu kapat" title="Oturumu kapat"><Icon name="logout" size={16} /></button></div>
+          <button className="icon-btn" onClick={async () => { await logout(); router.replace('/giris') }} aria-label="Oturumu kapat" title="Oturumu kapat"><Icon name="logout" size={16} /></button></div>
       </div>
     </aside>
     <button className="scrim" aria-label="Menüyü kapat" onClick={() => setMenu(false)} />
     <div className="main">
       <header className="topbar">
         <button className="icon-btn menu-btn" onClick={() => setMenu(!menu)} aria-label="Menü" aria-expanded={menu}><Icon name="menu" size={18} /></button>
-        <GlobalSearch />
+        <CommandPalette groups={visible} />
         <div className="top-right">
           <span className="top-date">{fmtLongDate(today())}</span>
-          <span className="env-chip" title="Veriler PostgreSQL veritabanında saklanır; oturumlar Supabase Auth ile doğrulanır.">Sunucu bağlı</span>
+          <span className="env-chip" title="Veriler PostgreSQL veritabanında saklanır; oturumlar Supabase Auth ile doğrulanır.">Canlı</span>
+          <ThemeToggle />
         </div>
       </header>
       {loadError && <div className="banner warn"><Icon name="alert" size={15} />{loadError}</div>}
@@ -105,38 +106,100 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
   </div>;
 }
 
-function GlobalSearch() {
-  const { state, actor } = useStore();
-  const [q, setQ] = useState('');
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
+interface PaletteItem { key: string; group: string; icon: IconName; title: React.ReactNode; label: string; sub?: string; run: () => void }
+
+function setTheme(next?: 'light' | 'dark') {
+  const t = next ?? (document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('heb-theme', t) } catch { /* private mode */ }
+}
+
+export function ThemeToggle() {
+  return <button type="button" className="icon-btn" onClick={() => setTheme()} aria-label="Açık/koyu tema" title="Açık/koyu tema">
+    <Icon name="moon" size={17} className="theme-icon-light" /><Icon name="sun" size={17} className="theme-icon-dark" />
+  </button>;
+}
+
+function CommandPalette({ groups }: { groups: [string, NavItem[]][] }) {
+  const { state, actor, logout } = useStore();
   const router = useRouter();
+  const ref = useRef<HTMLDialogElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [sel, setSel] = useState(0);
   useEffect(() => {
-    const h = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false) };
-    const k = (e: KeyboardEvent) => { if (e.key === '/' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) { e.preventDefault(); box.current?.querySelector('input')?.focus() } };
-    document.addEventListener('mousedown', h); document.addEventListener('keydown', k);
-    return () => { document.removeEventListener('mousedown', h); document.removeEventListener('keydown', k) };
+    const k = (e: KeyboardEvent) => {
+      const t = e.target;
+      const typing = t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement;
+      if ((e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !typing)) { e.preventDefault(); setOpen(true) }
+    };
+    document.addEventListener('keydown', k);
+    return () => document.removeEventListener('keydown', k);
   }, []);
-  if (!state || !actor) return null;
-  const term = fold(q.trim()), plate = normalizePlate(q);
-  const results: { href: string; title: React.ReactNode; sub: string; kind: string }[] = [];
-  if (term.length >= 2) {
-    for (const j of state.jobs) {
-      const v = state.vehicles.find(v => v.id === j.vehicleId);
-      if (fold(j.no).includes(term) || (v && normalizePlate(v.plate).includes(plate))) results.push({ href: detailHref('/is-emirleri/detay', j.id), title: j.no, sub: `${v ? v.brand + ' ' + v.model : ''} · ${j.status}`, kind: 'İş emri' });
+  useEffect(() => {
+    const d = ref.current; if (!d) return;
+    if (open && !d.open) { setQ(''); setSel(0); d.showModal() }
+    if (!open && d.open) d.close();
+  }, [open]);
+  const items = useMemo(() => {
+    if (!state || !actor) return [] as PaletteItem[];
+    const go = (href: string) => () => router.push(href);
+    const term = fold(q.trim()), plate = normalizePlate(q), digits = q.replace(/\D/g, '');
+    const found: PaletteItem[] = [];
+    if (term.length >= 2) {
+      for (const j of state.jobs) {
+        const v = state.vehicles.find(x => x.id === j.vehicleId);
+        if (fold(j.no).includes(term) || (v && plate && normalizePlate(v.plate).includes(plate)))
+          found.push({ key: 'j' + j.id, group: 'İş emirleri', icon: 'wrench', label: j.no, title: <><b className="mono">{j.no}</b>{v && <Plate value={v.plate} size="sm" />}</>, sub: `${v ? v.brand + ' ' + v.model + ' · ' : ''}${j.status}`, run: go(detailHref('/is-emirleri/detay', j.id)) });
+      }
+      for (const v of state.vehicles)
+        if ((plate && normalizePlate(v.plate).includes(plate)) || fold(v.brand + ' ' + v.model).includes(term) || v.vin.toLowerCase().includes(term))
+          found.push({ key: 'v' + v.id, group: 'Araçlar', icon: 'car', label: v.plate, title: <Plate value={v.plate} size="sm" />, sub: `${v.brand} ${v.model} · ${v.year}`, run: go(detailHref('/araclar/detay', v.id)) });
+      if (can(actor, 'customer.write')) for (const c of state.customers)
+        if (fold(c.name).includes(term) || (digits.length >= 3 && c.phone.replace(/\D/g, '').includes(digits)) || fold(c.no).includes(term))
+          found.push({ key: 'c' + c.id, group: 'Müşteriler', icon: 'user', label: c.name, title: <b>{c.name}</b>, sub: `${c.no} · ${c.phone}`, run: go(detailHref('/musteriler/detay', c.id)) });
     }
-    for (const v of state.vehicles) if (normalizePlate(v.plate).includes(plate) || fold(v.brand + ' ' + v.model).includes(term) || v.vin.toLowerCase().includes(term)) results.push({ href: detailHref('/araclar/detay', v.id), title: <Plate value={v.plate} size="sm" />, sub: `${v.brand} ${v.model} · ${v.year}`, kind: 'Araç' });
-    if (can(actor, 'customer.write')) for (const c of state.customers) if (fold(c.name).includes(term) || c.phone.replace(/\D/g, '').includes(q.replace(/\D/g, '') || '#') || fold(c.no).includes(term)) results.push({ href: detailHref('/musteriler/detay', c.id), title: c.name, sub: `${c.no} · ${c.phone}`, kind: 'Müşteri' });
-  }
-  const shown = results.slice(0, 9);
-  return <div className="global-search" ref={box}>
-    <Icon name="search" size={15} />
-    <input value={q} onChange={e => { setQ(e.target.value); setOpen(true) }} onFocus={() => setOpen(true)} placeholder="Plaka, iş emri no, müşteri veya telefon ara" aria-label="Genel arama"
-      onKeyDown={e => { if (e.key === 'Enter' && shown[0]) { router.push(shown[0].href); setOpen(false); setQ('') } if (e.key === 'Escape') setOpen(false) }} />
-    <kbd>/</kbd>
-    {open && term.length >= 2 && <div className="search-pop">
-      {shown.map((r, i) => <Link key={i} href={r.href} className="search-row" onClick={() => { setOpen(false); setQ('') }}><span className="search-kind">{r.kind}</span><span className="search-title">{r.title}</span><small>{r.sub}</small></Link>)}
-      {!shown.length && <div className="search-none">“{q}” için kayıt bulunamadı.</div>}
-    </div>}
-  </div>;
+    const actions: PaletteItem[] = [];
+    if (can(actor, 'job.create')) actions.push({ key: 'a-intake', group: 'Komutlar', icon: 'plus', label: 'Yeni araç kabul iş emri', title: 'Yeni araç kabul', sub: 'İş emri aç', run: go('/is-emirleri?yeni=1') });
+    if (can(actor, 'appointment.manage')) actions.push({ key: 'a-appt', group: 'Komutlar', icon: 'calendar', label: 'Randevu takvimi', title: 'Randevu takvimini aç', run: go('/randevular') });
+    actions.push({ key: 'a-theme', group: 'Komutlar', icon: 'moon', label: 'Tema açık koyu karanlık', title: 'Açık/koyu temaya geç', run: () => setTheme() });
+    actions.push({ key: 'a-out', group: 'Komutlar', icon: 'logout', label: 'Oturumu kapat çıkış', title: 'Oturumu kapat', run: () => { void logout().then(() => router.replace('/giris')) } });
+    const pages: PaletteItem[] = groups.flatMap(([g, entries]) => entries.map(i => ({ key: 'p' + i.href, group: 'Sayfalar', icon: i.icon, label: i.label, title: i.label, sub: g, run: go(i.href) })));
+    const match = (i: PaletteItem) => !term || fold(i.label + ' ' + (i.sub ?? '')).includes(term);
+    return [...found.slice(0, 12), ...actions.filter(match), ...pages.filter(match)];
+  }, [state, actor, q, groups, router, logout]);
+  useEffect(() => { list.current?.querySelector('.cmdk-item.on')?.scrollIntoView({ block: 'nearest' }) }, [sel]);
+  const choose = (i?: PaletteItem) => { if (!i) return; setOpen(false); i.run() };
+  const rows: React.ReactNode[] = [];
+  items.forEach((i, n) => {
+    if (n === 0 || items[n - 1].group !== i.group) rows.push(<div key={'g' + i.group} className="cmdk-group">{i.group}</div>);
+    rows.push(<button key={i.key} type="button" role="option" aria-selected={n === sel} className={'cmdk-item ' + (n === sel ? 'on' : '')} onMouseMove={() => setSel(n)} onClick={() => choose(i)}>
+      <Icon name={i.icon} size={16} /><span className="title-row">{i.title}</span>{i.sub && <small>{i.sub}</small>}
+    </button>);
+  });
+  return <>
+    <button type="button" className="global-search" onClick={() => setOpen(true)} aria-label="Ara veya komut çalıştır">
+      <Icon name="search" size={15} /><span>Plaka, iş emri, müşteri ara veya komut çalıştır</span><kbd>Ctrl K</kbd>
+    </button>
+    <dialog ref={ref} className="cmdk" aria-label="Komut paleti" onClose={() => setOpen(false)} onClick={e => { if (e.target === ref.current) setOpen(false) }}>
+      {open && <>
+        <div className="cmdk-input"><Icon name="search" size={17} />
+          <input autoFocus value={q} placeholder="Ne arıyorsunuz?" aria-label="Arama" aria-controls="cmdk-list"
+            onChange={e => { setQ(e.target.value); setSel(0) }}
+            onKeyDown={e => {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setSel(s => Math.min(items.length - 1, s + 1)) }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setSel(s => Math.max(0, s - 1)) }
+              if (e.key === 'Enter') { e.preventDefault(); choose(items[sel]) }
+            }} />
+          <kbd className="kbd">Esc</kbd>
+        </div>
+        <div className="cmdk-list" id="cmdk-list" role="listbox" ref={list}>
+          {rows}
+          {!items.length && <div className="search-none">“{q}” için sonuç bulunamadı.</div>}
+        </div>
+        <div className="cmdk-foot"><span><kbd className="kbd">↑</kbd><kbd className="kbd">↓</kbd> gezin</span><span><kbd className="kbd">Enter</kbd> aç</span><span><kbd className="kbd">Esc</kbd> kapat</span></div>
+      </>}
+    </dialog>
+  </>;
 }

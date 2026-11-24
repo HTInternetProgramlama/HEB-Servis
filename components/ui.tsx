@@ -99,7 +99,17 @@ export function Search({ value, onChange, placeholder }: { value: string; onChan
   return <div className="search-input"><Icon name="search" size={15} /><input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} aria-label={placeholder} />{value && <button type="button" aria-label="Temizle" onClick={() => onChange('')}><Icon name="x" size={13} /></button>}</div>;
 }
 
-export function Stat({ label, value, foot, tone, href }: { label: string; value: React.ReactNode; foot?: React.ReactNode; tone?: 'warn' | 'ok' | 'bad'; href?: string }) {
-  const body = <><span className="stat-label">{label}</span><strong className={'stat-value ' + (tone ?? '')}>{value}</strong>{foot && <span className="stat-foot">{foot}</span>}</>;
-  return href ? <Link href={href} className="stat link">{body}</Link> : <div className="stat">{body}</div>;
+/** Küçük eğilim çizgisi; değerler eşit aralıklı kabul edilir. */
+export function Spark({ values }: { values: number[] }) {
+  if (values.length < 2) return null;
+  const w = 64, h = 26, max = Math.max(...values, 1), min = Math.min(...values, 0);
+  const pts = values.map((v, i) => [(i / (values.length - 1)) * w, h - 2 - ((v - min) / (max - min || 1)) * (h - 4)]);
+  const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
+  return <svg className="spark" viewBox={`0 0 ${w} ${h}`} aria-hidden="true"><path className="area" d={`${line} L${w} ${h} L0 ${h}Z`} /><path className="line" d={line} /></svg>;
+}
+
+export function Stat({ label, value, foot, tone, href, spark }: { label: string; value: React.ReactNode; foot?: React.ReactNode; tone?: 'warn' | 'ok' | 'bad'; href?: string; spark?: number[] }) {
+  const body = <><span className="stat-label">{label}</span><strong className={'stat-value ' + (tone ?? '')}>{value}</strong>{foot && <span className="stat-foot">{foot}</span>}{spark && <Spark values={spark} />}</>;
+  const cls = 'stat ' + (tone ? 'tone-' + tone : '');
+  return href ? <Link href={href} className={cls + ' link'}>{body}</Link> : <div className={cls}>{body}</div>;
 }

@@ -144,19 +144,28 @@ function Overview({ job }: { job: Job }) {
 function Inspections({ job }: { job: Job }) {
   const { state, actor, run } = useApp();
   const { error, busy, submit } = useFormRunner();
-  const [draft, setDraft] = useState<ReturnType<typeof generateTechnicalDraft> | null>(null);
+  const [draft, setDraft] = useState<(ReturnType<typeof generateTechnicalDraft> & { causes?: string[]; ai?: boolean; notice?: string }) | null>(null);
+  const [thinking, setThinking] = useState(false);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const writable = can(actor, 'inspection.write') && !['Teslim edildi', 'İptal'].includes(job.status);
   const vehicle = state.vehicles.find(v => v.id === job.vehicleId)!;
 
-  function makeDraft() {
-    const past = state.jobs.filter(j => j.vehicleId === vehicle.id && j.id !== job.id).flatMap(j => j.inspections.filter(i => i.result !== 'Uygun').map(i => i.item));
-    setDraft(generateTechnicalDraft({ brand: vehicle.brand, model: vehicle.model, year: vehicle.year, km: job.intake.km, fuel: vehicle.fuel, complaint: job.intake.complaint, pastItems: past }));
-    setPicked(new Set());
+  async function makeDraft() {
+    setThinking(true); setPicked(new Set());
+    try {
+      const response = await fetch('/api/ai/technical', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jobId: job.id }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setDraft(data);
+    } catch {
+      // Network or server failure: the same rule engine runs locally so the technician is never blocked.
+      const past = state.jobs.filter(j => j.vehicleId === vehicle.id && j.id !== job.id).flatMap(j => j.inspections.filter(i => i.result !== 'Uygun').map(i => i.item));
+      setDraft({ ...generateTechnicalDraft({ brand: vehicle.brand, model: vehicle.model, year: vehicle.year, km: job.intake.km, fuel: vehicle.fuel, complaint: job.intake.complaint, pastItems: past }), notice: 'Sunucuya ulaşılamadı; tarayıcıdaki kural tabanlı motor kullanıldı.' });
+    } finally { setThinking(false) }
   }
   async function addPicked(list: Suggestion[]) {
     const chosen = list.filter((_, i) => picked.has(i));
-    await run((s, a) => chosen.reduce((st, x) => addInspection(st, a, job.id, { item: x.item, result: x.priority, note: 'Ön değerlendirme önerisi; muayene ile doğrulanmalı. ' + x.reason, customerVisible: false, source: 'Ön değerlendirme' }), s), `${chosen.length} ön değerlendirme önerisi bulgu listesine eklendi`, job.no);
+    await run((s, a) => chosen.reduce((st, x) => addInspection(st, a, job.id, { item: x.item, result: x.priority, note: (draft?.ai ? 'Yapay zekâ önerisi' : 'Ön değerlendirme önerisi') + '; muayene ile doğrulanmalı. ' + x.reason, customerVisible: false, source: 'Ön değerlendirme' }), s), `${chosen.length} ön değerlendirme önerisi bulgu listesine eklendi`, job.no);
     setDraft(null);
   }
 
@@ -190,13 +199,17 @@ function Inspections({ job }: { job: Job }) {
       </form>
     </Card>}
 
-    {writable && <Card title="Teknik ön değerlendirme" sub="Araç teknik bilgisi, kilometre ve şikâyetten olası kontrol listesi üretir. Kesin teşhis değildir; seçilenler onayınızla bulgu listesine eklenir."
-      actions={<Button icon="bulb" onClick={makeDraft}>{draft ? 'Yeniden oluştur' : 'Taslak oluştur'}</Button>}>
-      <p className="small muted"><Icon name="lock" size={12} /> Kullanılan veriler: marka/model, yıl, kabul km, yakıt türü, şikâyet metni ve aracın önceki bulguları. Müşteri adı, telefon, plaka ve iç notlar kullanılmaz.</p>
-      {draft && <div className="draft">
+    {writable && <Card title={<span className="title-row">Teknik ön değerlendirme<span className="tag ai">Yapay zekâ</span></span>} sub="Araç bilgisi, kilometre ve şikâyetten muayene kontrol listesi önerir. Kesin teşhis değildir; seçtikleriniz onayınızla bulgu listesine eklenir."
+      actions={<Button icon="sparkle" variant={draft ? 'default' : 'primary'} disabled={thinking} onClick={makeDraft}>{draft ? 'Yeniden oluştur' : 'Öneri oluştur'}</Button>}>
+      <p className="small muted"><Icon name="lock" size={12} /> Modele yalnız marka/model, yıl, kabul km, yakıt türü, şikâyet metni ve aracın önceki bulguları gönderilir. Müşteri adı, telefon, plaka ve iç notlar gönderilmez.</p>
+      {thinking && <div className="ai-panel"><div className="ai-loading"><i />Şikâyet ve araç geçmişi değerlendiriliyor…</div></div>}
+      {draft && !thinking && <div className="ai-panel">
+        <div className="ai-head"><strong><Icon name={draft.ai ? 'sparkle' : 'bulb'} size={16} />{draft.ai ? 'Yapay zekâ önerisi' : 'Kural tabanlı öneri'}</strong><span className="ai-meta">{draft.engine}</span></div>
+        {draft.notice && <div className="banner warn"><Icon name="alert" size={14} />{draft.notice}</div>}
         <p>{draft.explanation}</p>
+        {!!draft.causes?.length && <div><div className="mini-head">Olası nedenler</div><ol className="ai-causes">{draft.causes.map(c => <li key={c}>{c}</li>)}</ol></div>}
         <ul className="draft-list">{draft.suggestions.map((sg, i) => <li key={i}><label className="check"><input type="checkbox" checked={picked.has(i)} onChange={() => setPicked(p => { const n = new Set(p); if (n.has(i)) n.delete(i); else n.add(i); return n })} /><span><strong>{sg.item}</strong><small>{sg.reason}</small></span></label><Status value={sg.priority} /></li>)}</ul>
-        <div className="row-between"><small className="muted">{draft.engine}</small><Button variant="primary" disabled={!picked.size} onClick={() => addPicked(draft.suggestions)}>Seçilenleri bulgu olarak ekle ({picked.size})</Button></div>
+        <div className="row-between wrap"><small className="muted">Öneriler teknisyen muayenesiyle doğrulanmalıdır.</small><Button variant="primary" disabled={!picked.size} onClick={() => addPicked(draft.suggestions)}>Seçilenleri bulgu olarak ekle ({picked.size})</Button></div>
       </div>}
     </Card>}
   </div>;
