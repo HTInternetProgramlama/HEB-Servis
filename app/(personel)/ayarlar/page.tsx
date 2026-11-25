@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useApp } from '@/components/store';
 import { Button, Card, Empty, Field, FormError, Modal, PageHeader, Status, Tabs, useFormRunner } from '@/components/ui';
 import { Icon } from '@/components/icons';
+import { SettingsNav } from '@/components/subnavs';
 import { can, roleLabel, updateSettings, upsertUser } from '@/lib/commands';
 import { uid } from '@/lib/format';
 import type { Resource, Role, ServiceType, Settings, User } from '@/lib/types';
@@ -23,8 +24,9 @@ export default function SettingsPage() {
   const svc = (i: number, p: Partial<ServiceType>) => setS({ ...s, services: s.services.map((r, j) => j === i ? { ...r, ...p } : r) });
 
   return <>
-    <PageHeader title="Ayarlar ve personel" sub="Firma bilgileri servis formunda kullanılır. Çalışma saatleri ve servis alanları randevu kontrolünü belirler."
+    <PageHeader title="Ayarlar"
       actions={tab !== 'staff' && tab !== 'data' && <><Button disabled={!dirty} onClick={() => setS(state.settings)}>Geri al</Button><Button variant="primary" disabled={!dirty || busy} onClick={save}>Değişiklikleri kaydet</Button></>} />
+    <SettingsNav />
     <Tabs value={tab} onChange={setTab} items={[['company', 'Firma'], ['hours', 'Çalışma düzeni'], ['staff', 'Kullanıcılar', state.users.length], ['data', 'Veri']]} />
     <FormError error={error} />
     {tab === 'company' && <Card title="Firma ve şube">

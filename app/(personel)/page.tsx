@@ -1,131 +1,105 @@
 'use client';
 import { detailHref } from '@/lib/routes';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/components/store';
-import { Card, Empty, PageHeader, Stat, Status } from '@/components/ui';
-import { JobTable } from '@/components/job-table';
+import { Avatar, PageHeader, Stat } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import { CarImage, Plate, VehicleCell } from '@/components/vehicle-identity';
-import { amountDue, balance, estimateTotals, latestEstimate, resourceName, serviceName, staffName, technicians } from '@/lib/rules';
-import { addDays, fmtDate, fmtTime, isoDay, money, moneyShort, today } from '@/lib/format';
-import type { Job } from '@/lib/types';
+import { CarImage, Plate } from '@/components/vehicle-identity';
+import { amountDue, balance, can, dueReminders, estimateTotals, latestEstimate, staffName, technicians } from '@/lib/rules';
+import { fmtDate, fmtTime, isoDay, money, today } from '@/lib/format';
+import type { Job, JobStatus } from '@/lib/types';
 
-const openStatuses = ['Kabul edildi', 'İnceleniyor', 'Onay bekliyor', 'İşlemde', 'Parça bekliyor', 'Son kontrol', 'Teslime hazır'];
+/** Panodaki 5 ana durum. "Parça bekliyor" ve "Son kontrol" ayrı sütun değil, Serviste kartında etikettir. */
+const columns: { key: string; title: string; statuses: JobStatus[] }[] = [
+  { key: 'intake', title: 'Kabul / Teklif', statuses: ['Kabul edildi', 'İnceleniyor'] },
+  { key: 'approval', title: 'Onay bekliyor', statuses: ['Onay bekliyor'] },
+  { key: 'work', title: 'Serviste', statuses: ['İşlemde', 'Parça bekliyor', 'Son kontrol'] },
+  { key: 'ready', title: 'Hazır', statuses: ['Teslime hazır'] },
+  { key: 'done', title: 'Teslim (bugün)', statuses: ['Teslim edildi'] },
+];
 
-export default function Overview() {
+export default function Board() {
   const { state, actor } = useApp();
+  const isTech = actor.role === 'technician';
+  const [tech, setTech] = useState(isTech ? actor.userId : '');
   const day = today();
-  const v = (id: string) => state.vehicles.find(x => x.id === id);
-  const c = (id: string) => state.customers.find(x => x.id === id);
-  const open = state.jobs.filter(j => openStatuses.includes(j.status));
-  const mine = actor.role === 'technician' ? open.filter(j => j.technicianId === actor.userId) : open;
-  const overdue = (j: Job) => j.status !== 'Teslime hazır' && new Date(j.promisedAt).getTime() < Date.now();
+  const showMoney = can(actor, 'payment.read');
+  const jobs = state.jobs.filter(j => (!tech || j.technicianId === tech) && (j.status !== 'Teslim edildi' || (!!j.deliveredAt && isoDay(j.deliveredAt) === day)));
+  const of = (st: JobStatus[]) => jobs.filter(j => st.includes(j.status));
+  const late = (j: Job) => !['Teslime hazır', 'Teslim edildi', 'İptal'].includes(j.status) && new Date(j.promisedAt).getTime() < Date.now();
+  const open = jobs.filter(j => !['Teslim edildi', 'İptal'].includes(j.status));
+  const deliveredToday = of(['Teslim edildi']).length;
 
-  if (actor.role === 'technician') {
-    return <>
-      <PageHeader title={`İyi çalışmalar, ${actor.name.split(' ')[0]}`} sub="Size atanan açık iş emirleri" />
-      <div className="stats">
-        <Stat label="Açık işlerim" value={mine.length} />
-        <Stat label="İncelenecek" value={mine.filter(j => ['Kabul edildi', 'İnceleniyor'].includes(j.status)).length} />
-        <Stat label="İşlemde" value={mine.filter(j => j.status === 'İşlemde').length} />
-        <Stat label="Parça bekleyen" value={mine.filter(j => j.status === 'Parça bekliyor').length} tone={mine.some(j => j.status === 'Parça bekliyor') ? 'warn' : undefined} />
-      </div>
-      <Card title="İş listem" flush actions={<Link className="btn sm" href="/atolye">Atölye panosu</Link>}>
-        <JobTable jobs={mine} />
-      </Card>
-    </>;
+  const notes: { href: string; text: string; tone?: 'bad' | 'warn' }[] = [];
+  if (!isTech) {
+    const requests = state.appointments.filter(a => a.status === 'Bekliyor').length;
+    const reminders = can(actor, 'reminder.write') ? dueReminders(state).filter(r => !r.hasAppointment).length : 0;
+    const openBalance = state.jobs.filter(j => j.status !== 'İptal').reduce((s, j) => s + Math.max(0, balance(j)), 0);
+    if (open.some(late)) notes.push({ href: '/is-emirleri?filtre=gecikme', text: `${open.filter(late).length} iş söz verilen saati geçti`, tone: 'bad' });
+    if (requests) notes.push({ href: '/randevular', text: `${requests} randevu talebi onay bekliyor`, tone: 'warn' });
+    if (reminders) notes.push({ href: '/hatirlatmalar', text: `${reminders} araç bakım hatırlatması bekliyor` });
+    if (showMoney && openBalance > 0) notes.push({ href: '/is-emirleri?filtre=bakiye', text: `Açık bakiye ${money(openBalance)}` });
   }
 
-  const todays = state.appointments.filter(a => a.date === day && !['İptal'].includes(a.status)).sort((a, b) => a.time.localeCompare(b.time));
-  const pendingEstimates = state.jobs.filter(j => latestEstimate(j)?.status === 'Gönderildi');
-  const pendingValue = pendingEstimates.reduce((s, j) => s + estimateTotals(latestEstimate(j)!).total, 0);
-  const payments = state.jobs.flatMap(j => j.payments.map(p => ({ ...p, job: j })));
-  const todayCash = payments.filter(p => isoDay(p.at) === day).reduce((s, p) => s + p.amount, 0);
-  const openBalance = state.jobs.filter(j => j.status !== 'İptal').reduce((s, j) => s + Math.max(0, balance(j)), 0);
-  const ready = state.jobs.filter(j => j.status === 'Teslime hazır');
-
-  const alerts: { tone: 'bad' | 'warn'; text: React.ReactNode; href: string }[] = [
-    ...open.filter(overdue).map(j => ({ tone: 'bad' as const, text: <><b>{j.no}</b> tahmini teslim süresi geçti ({fmtDate(j.promisedAt)} {fmtTime(j.promisedAt)})</>, href: detailHref('/is-emirleri/detay', j.id) })),
-    ...state.appointments.filter(a => a.status === 'Bekliyor').map(a => ({ tone: 'warn' as const, text: <><b>{a.no}</b> randevu talebi onay bekliyor · {fmtDate(a.date)} {a.time}</>, href: '/randevular?tarih=' + a.date })),
-    ...open.flatMap(j => j.inspections.filter(i => i.result === 'Acil').length && latestEstimate(j)?.status !== 'Onaylandı' ? [{ tone: 'bad' as const, text: <><b>{j.no}</b> acil bulgu var: {j.inspections.find(i => i.result === 'Acil')!.item}</>, href: detailHref('/is-emirleri/detay', j.id) }] : []),
-    ...open.filter(j => j.status === 'Parça bekliyor').map(j => ({ tone: 'warn' as const, text: <><b>{j.no}</b> parça bekliyor</>, href: detailHref('/is-emirleri/detay', j.id) })),
-  ];
-
-  const days = Array.from({ length: 14 }, (_, i) => addDays(day, i - 13));
-  const series = days.map(d => ({ d, value: payments.filter(p => isoDay(p.at) === d).reduce((s, p) => s + p.amount, 0) }));
-  const max = Math.max(...series.map(s => s.value), 1);
-  const total14 = series.reduce((s, x) => s + x.value, 0);
-
   return <>
-    <PageHeader title="Genel bakış" sub={`${state.settings.company.branch} · günlük operasyon özeti`}
-      actions={<><Link href="/randevular" className="btn"><Icon name="calendar" size={15} />Takvim</Link><Link href="/is-emirleri?yeni=1" className="btn primary"><Icon name="plus" size={15} />Araç kabul</Link></>} />
-    <div className="stats six">
-      <Stat label="Bugünkü randevu" value={todays.length} foot={`${todays.filter(a => a.status === 'Bekliyor').length} talep onay bekliyor`} href="/randevular" />
-      <Stat label="Atölyedeki araç" value={open.length} foot={`${open.filter(overdue).length} gecikmede`} tone={open.some(overdue) ? 'bad' : undefined} href="/atolye" />
-      <Stat label="Onay bekleyen teklif" value={pendingEstimates.length} foot={money(pendingValue)} tone={pendingEstimates.length ? 'warn' : undefined} href="/teklifler" />
-      <Stat label="Teslime hazır" value={ready.length} foot={money(ready.reduce((s, j) => s + Math.max(0, balance(j)), 0)) + ' tahsil edilecek'} href="/atolye" />
-      <Stat label="Bugünkü tahsilat" value={moneyShort(todayCash)} foot={`${payments.filter(p => isoDay(p.at) === day).length} işlem`} href="/tahsilat" spark={series.slice(-7).map(s => s.value)} />
-      <Stat label="Açık bakiye" value={moneyShort(openBalance)} foot="Onaylı iş − tahsilat" href="/tahsilat" />
+    <PageHeader title={isTech ? 'Panom' : 'Pano'}
+      actions={<>
+        {!isTech && <select className="select" value={tech} onChange={e => setTech(e.target.value)} aria-label="Teknisyen"><option value="">Tüm teknisyenler</option>{technicians(state).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>}
+        <div className="seg" role="tablist" aria-label="Görünüm"><button className="active" role="tab" aria-selected>Pano</button><Link href="/is-emirleri" role="tab" aria-selected={false}>Liste</Link></div>
+      </>} />
+
+    <div className="stats">
+      <Stat label="Bugün kabul" value={jobs.filter(j => isoDay(j.createdAt) === day).length} href="/is-emirleri" />
+      <Stat label="Onay bekleyen" value={of(['Onay bekliyor']).length} tone={of(['Onay bekliyor']).length ? 'warn' : undefined} href="/is-emirleri?filtre=onay" />
+      <Stat label="Serviste" value={of(columns[2].statuses).length} foot={of(['Parça bekliyor']).length ? `${of(['Parça bekliyor']).length} parça bekliyor` : undefined} href="/is-emirleri?filtre=serviste" />
+      <Stat label="Teslime hazır" value={of(['Teslime hazır']).length} tone={of(['Teslime hazır']).length ? 'ok' : undefined} href="/is-emirleri?filtre=hazir" />
     </div>
 
-    {open.length > 0 && <section className="garage" aria-label="Atölyedeki araçlar">
-      <header><div><h2>Atölye şu an</h2><p>{open.length} araç içeride · {open.filter(j => j.status === 'İşlemde').length} işlemde · {ready.length} teslime hazır</p></div><Link href="/atolye" className="btn sm">Panoya git <Icon name="arrow" size={13} /></Link></header>
-      <div className="garage-lane">{open.slice().sort((a, b) => a.promisedAt.localeCompare(b.promisedAt)).map(j => {
-        const veh = v(j.vehicleId);
-        const step = openStatuses.indexOf(j.status);
-        return <Link key={j.id} href={detailHref('/is-emirleri/detay', j.id)} className={'bay ' + (overdue(j) ? 'late' : '')}>
-          <div className="bay-art">{veh && <CarImage vehicle={veh} />}</div>
-          <div className="bay-info">{veh && <Plate value={veh.plate} size="sm" />}<Status value={j.status} /></div>
-          <strong>{veh ? `${veh.brand} ${veh.model}` : j.no}</strong>
-          <small>{staffName(state, j.technicianId)} · teslim {fmtDate(j.promisedAt, { day: '2-digit', month: '2-digit' })} {fmtTime(j.promisedAt)}</small>
-          <div className="bay-steps" aria-label={`Aşama ${step + 1} / ${openStatuses.length}`}>{openStatuses.map((st, i) => <i key={st} className={i < step ? 'done' : i === step ? 'now' : ''} />)}</div>
-        </Link>;
-      })}</div>
-    </section>}
+    {notes.length > 0 && <ul className="pano-notes">{notes.map(n => <li key={n.href}><Link href={n.href}><span className={'dot ' + (n.tone ?? '')} />{n.text}<Icon name="right" size={13} /></Link></li>)}</ul>}
 
-    <div className="grid-main">
-      <Card title="Bugünün randevuları" sub={fmtDate(day, { day: 'numeric', month: 'long', weekday: 'long' })} flush actions={<Link className="btn sm" href="/randevular">Takvime git</Link>}>
-        {todays.length ? <table className="table">
-          <thead><tr><th>Saat</th><th>Araç</th><th className="hide-sm">Müşteri</th><th className="hide-sm">Hizmet / alan</th><th>Durum</th></tr></thead>
-          <tbody>{todays.map(a => <tr key={a.id}>
-            <td className="mono">{a.time}</td>
-            <td><VehicleCell vehicle={v(a.vehicleId)} /></td>
-            <td className="hide-sm">{c(a.customerId)?.name}</td>
-            <td className="hide-sm"><span>{serviceName(state, a.serviceId)}</span><small className="cell-sub">{resourceName(state, a.resourceId)} · {a.duration} dk</small></td>
-            <td><Status value={a.status} /></td>
-          </tr>)}</tbody>
-        </table> : <Empty icon="calendar" title="Bugün randevu yok" />}
-      </Card>
-      <Card title="Dikkat gerektirenler" sub={`${alerts.length} kayıt`} flush>
-        {alerts.length ? <ul className="alert-list">{alerts.slice(0, 8).map((a, i) => <li key={i}><Link href={a.href}><span className={'dot ' + a.tone} /><span>{a.text}</span><Icon name="right" size={14} /></Link></li>)}</ul>
-          : <Empty icon="check" title="Bekleyen uyarı yok" />}
-      </Card>
+    <div className="kanban">
+      {columns.map(col => {
+        const items = of(col.statuses).sort((a, b) => a.promisedAt.localeCompare(b.promisedAt));
+        return <section key={col.key} className={'kb-col kb-' + col.key} aria-label={col.title}>
+          <header><span className="kb-dot" />{col.title}<em>{items.length}</em></header>
+          <div className="kb-items">
+            {items.map(j => <JobCard key={j.id} job={j} late={late(j)} showMoney={showMoney} />)}
+            {!items.length && <p className="kb-empty">Boş</p>}
+          </div>
+        </section>;
+      })}
     </div>
-
-    <div className="grid-main">
-      <Card title="Günlük tahsilat" sub={`Son 14 gün · toplam ${money(total14)}`}>
-        <div className="bars" role="img" aria-label={`Son 14 günde toplam ${money(total14)} tahsilat`}>
-          <div className="bars-grid"><span>{moneyShort(max)}</span><span>{moneyShort(max / 2)}</span><span>0 ₺</span></div>
-          <div className="bars-plot">{series.map(s => <div key={s.d} className="bar-col" tabIndex={0}>
-            <div className="bar" style={{ height: `${(s.value / max) * 100}%` }} />
-            <span className="bar-tip">{fmtDate(s.d, { day: 'numeric', month: 'short', weekday: 'short' })}<b>{money(s.value)}</b></span>
-            <span className="bar-x">{s.d === day ? 'Bugün' : fmtDate(s.d, { day: 'numeric' })}</span>
-          </div>)}</div>
-        </div>
-      </Card>
-      <Card title="Teknisyen iş yükü" sub="Açık iş emirleri" flush>
-        <table className="table">
-          <thead><tr><th>Teknisyen</th><th className="num">Açık</th><th className="num">İşlemde</th><th className="num">Bu ay teslim</th></tr></thead>
-          <tbody>{technicians(state).map(t => {
-            const tj = state.jobs.filter(j => j.technicianId === t.id);
-            return <tr key={t.id}><td>{t.name}</td><td className="num">{tj.filter(j => openStatuses.includes(j.status)).length}</td><td className="num">{tj.filter(j => j.status === 'İşlemde').length}</td><td className="num">{tj.filter(j => j.deliveredAt && j.deliveredAt.slice(0, 7) === day.slice(0, 7)).length}</td></tr>;
-          })}</tbody>
-        </table>
-      </Card>
-    </div>
-
-    <Card title="Atölyedeki iş emirleri" flush actions={<Link className="btn sm" href="/is-emirleri">Tümü</Link>}>
-      <JobTable jobs={open} />
-    </Card>
+    <p className="kb-done-note"><Link href="/is-emirleri?filtre=teslim">Bugün {deliveredToday} araç teslim edildi</Link></p>
   </>;
+}
+
+function JobCard({ job: j, late, showMoney }: { job: Job; late: boolean; showMoney: boolean }) {
+  const { state } = useApp();
+  const v = state.vehicles.find(x => x.id === j.vehicleId);
+  const c = state.customers.find(x => x.id === j.customerId);
+  const tech = staffName(state, j.technicianId);
+  const latest = latestEstimate(j);
+  const amount = amountDue(j) || (latest ? estimateTotals(latest).total : 0);
+  const urgent = j.inspections.some(i => i.result === 'Acil') && latest?.status !== 'Onaylandı' && !['Teslime hazır', 'Teslim edildi'].includes(j.status);
+  const when = isoDay(j.promisedAt) === today() ? fmtTime(j.promisedAt) : fmtDate(j.promisedAt, { day: '2-digit', month: '2-digit' }) + ' ' + fmtTime(j.promisedAt);
+  const tags: [string, string][] = [];
+  if (j.status === 'Parça bekliyor') tags.push(['Parça bekliyor', 'orange']);
+  if (j.status === 'Son kontrol') tags.push(['Son kontrol', 'blue']);
+  if (j.status === 'Kabul edildi') tags.push(['Muayene bekliyor', 'slate']);
+  if (j.status === 'İnceleniyor' && latest?.status === 'Taslak') tags.push(['Teklif taslağı', 'slate']);
+  if (urgent) tags.push(['Acil bulgu', 'red']);
+  if (late) tags.push(['Gecikti', 'red']);
+  return <Link href={detailHref('/is-emirleri/detay', j.id)} className={'job-card ' + (late ? 'late' : '')}>
+    <div className="jc-head">{v ? <Plate value={v.plate} /> : <span className="mono">{j.no}</span>}<span className="jc-tech" title={`Teknisyen: ${tech}`}><Avatar name={tech} size={22} /></span></div>
+    <div className="jc-main">
+      {v && <span className="jc-art" aria-hidden="true"><CarImage vehicle={v} /></span>}
+      <div className="jc-text"><strong title={v ? `${v.brand} ${v.model}` : undefined}>{v ? `${v.brand} ${v.model}` : '—'}</strong><span>{c?.name}</span><small className="jc-no">{j.no}</small></div>
+    </div>
+    {tags.length > 0 && <div className="jc-tags">{tags.map(([t, tone]) => <span key={t} className={'tag ' + tone}>{t}</span>)}</div>}
+    <div className="jc-foot">
+      <span className={'jc-time ' + (late ? 'text-bad' : '')}><Icon name="clock" size={12} />{j.status === 'Teslim edildi' && j.deliveredAt ? fmtTime(j.deliveredAt) : when}</span>
+      {showMoney && amount > 0 && <b className="jc-amount">{money(amount)}</b>}
+    </div>
+  </Link>;
 }

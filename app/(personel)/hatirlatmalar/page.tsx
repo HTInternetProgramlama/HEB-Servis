@@ -6,6 +6,7 @@ import { useApp } from '@/components/store';
 import { Button, Card, Empty, Field, FormError, Modal, PageHeader, useFormRunner } from '@/components/ui';
 import { VehicleCell } from '@/components/vehicle-identity';
 import { AppointmentForm } from '@/components/forms';
+import { RecordsNav } from '@/components/subnavs';
 import { dueReminders, logReminder } from '@/lib/commands';
 import { fmtDate, fmtDateTime } from '@/lib/format';
 import type { ReminderResult, Vehicle } from '@/lib/types';
@@ -19,8 +20,9 @@ export default function RemindersPage() {
   const list = dueReminders(state).filter(r => showAll || !r.hasAppointment);
 
   return <>
-    <PageHeader title="Bakım hatırlatmaları" sub="Teslimde planlanan tarih veya kilometreye 30 gün / 1.500 km kalan araçlar. Mesaj otomatik gönderilmez; arama sonucu kayda alınır." />
-    <div className="toolbar"><label className="check inline"><input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} /> Randevusu olanları da göster</label></div>
+    <PageHeader title="Müşteriler" />
+    <RecordsNav />
+    <div className="toolbar"><span className="muted small">Bakıma 30 gün / 1.500 km kalan araçlar. Mesaj otomatik gönderilmez.</span><label className="check inline toolbar-end"><input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} /> Randevusu olanları da göster</label></div>
     <Card flush>{list.length ? <div className="table-wrap"><table className="table">
       <thead><tr><th>Araç</th><th className="hide-sm">Sahibi</th><th>Planlanan</th><th className="hide-sm">Son temas</th><th /></tr></thead>
       <tbody>{list.map(r => {

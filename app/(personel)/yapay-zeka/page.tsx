@@ -40,7 +40,7 @@ export default function AiPage() {
   }, [actor.role]);
 
   return <>
-    <PageHeader title="Yapay zekâ asistanı" sub="Servis danışmanı ve teknisyen için taslak üretir. Son karar her zaman personelindir; müşteri adı, telefonu ve iç notlar modele gönderilmez." />
+    <PageHeader title="Asistan" sub="Taslak üretir; son karar personelindir. Müşteri adı, telefonu ve iç notlar modele gönderilmez." />
     <section className="ai-hero">
       <div className="ai-hero-text">
         <span className={'ai-state ' + (status?.configured ? 'on' : 'off')}><i />{status ? status.configured ? 'Claude bağlı' : 'Kural/şablon motoru' : 'Kontrol ediliyor…'}</span>

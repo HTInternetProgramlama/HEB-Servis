@@ -4,6 +4,7 @@ import { useApp } from '@/components/store';
 import { Button, PageHeader } from '@/components/ui';
 import { Icon, type IconName } from '@/components/icons';
 import { ReportDoc } from '@/components/report-doc';
+import { ReportsNav } from '@/components/subnavs';
 import { buildReport, reportKinds, type ReportKind } from '@/lib/report';
 import { amountDue, amountPaid, serviceName, staffName } from '@/lib/rules';
 import { addDays, fmtDate, isoDay, today } from '@/lib/format';
@@ -48,8 +49,9 @@ export default function ReportsPage() {
 
   return <div className="reports">
     <div className="no-print">
-      <PageHeader title="Raporlar" sub="Rapor türünü ve dönemi seçin; sağdaki belge yazdırılacak ve PDF olarak indirilecek hâlidir."
+      <PageHeader title="Raporlar"
         actions={<><Button icon="download" onClick={exportCsv}>Excel (CSV)</Button><Button variant="primary" icon="printer" onClick={() => print()}>PDF indir</Button></>} />
+      <ReportsNav />
     </div>
     <div className="report-layout">
       <aside className="report-controls no-print">

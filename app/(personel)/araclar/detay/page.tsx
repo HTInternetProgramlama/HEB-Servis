@@ -26,7 +26,7 @@ function VehicleDetail() {
   const due = (v.nextServiceDate && v.nextServiceDate <= today()) || (v.nextServiceKm && v.km >= v.nextServiceKm);
 
   return <>
-    <PageHeader crumbs={[['Araçlar', '/araclar'], [v.plate]]} title={<span className="title-row"><BrandMark brand={v.brand} />{v.brand} {v.model}<Plate value={v.plate} /></span>}
+    <PageHeader crumbs={[[owner && can(actor, 'customer.write') ? owner.name : 'Araçlar', owner && can(actor, 'customer.write') ? detailHref('/musteriler/detay', owner.id) : '/araclar'], [v.plate]]} title={<span className="title-row"><BrandMark brand={v.brand} />{v.brand} {v.model}<Plate value={v.plate} /></span>}
       sub={`${v.year} · ${v.color || 'renk belirtilmedi'} · ${km(v.km)}`}
       actions={can(actor, 'vehicle.write') && <><Button icon="edit" onClick={() => setModal('edit')}>Düzenle</Button><Button variant="primary" icon="calendar" onClick={() => setModal('appointment')}>Randevu oluştur</Button></>} />
     <div className="detail-layout">

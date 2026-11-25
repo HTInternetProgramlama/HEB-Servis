@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useApp } from '@/components/store';
 import { Button, Card, Empty, PageHeader, Stat } from '@/components/ui';
 import { PaymentForm } from '@/components/payment';
+import { ReportsNav } from '@/components/subnavs';
 import { VehicleCell } from '@/components/vehicle-identity';
 import { amountDue, amountPaid, balance, can } from '@/lib/rules';
 import { addDays, daysBetween, fmtDate, fmtDateTime, isoDay, money, today } from '@/lib/format';
@@ -21,7 +22,8 @@ export default function PaymentsPage() {
   const open = state.jobs.filter(j => j.status !== 'İptal' && balance(j) > 0).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
   return <>
-    <PageHeader title="Tahsilat" sub="İşlem tutarı ve tahsilat ayrı izlenir. Bu ekran kayıt tutar; çevrim içi ödeme almaz." />
+    <PageHeader title="Raporlar" />
+    <ReportsNav />
     <div className="toolbar">
       <label className="inline-field">Başlangıç<input type="date" value={from} max={to} onChange={e => e.target.value && setFrom(e.target.value)} /></label>
       <label className="inline-field">Bitiş<input type="date" value={to} min={from} onChange={e => e.target.value && setTo(e.target.value)} /></label>

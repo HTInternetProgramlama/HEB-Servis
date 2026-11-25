@@ -1,12 +1,13 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { Icon, type IconName } from './icons';
 
 const tones: Record<string, string> = {
   'Bekliyor': 'amber', 'Onaylı': 'blue', 'Geldi': 'teal', 'İş emri açıldı': 'slate', 'İptal': 'red', 'Gelmedi': 'red',
-  'Kabul edildi': 'slate', 'İnceleniyor': 'blue', 'Onay bekliyor': 'amber', 'İşlemde': 'teal', 'Parça bekliyor': 'orange',
-  'Son kontrol': 'violet', 'Teslime hazır': 'green', 'Teslim edildi': 'muted',
+  'Kabul edildi': 'slate', 'İnceleniyor': 'slate', 'Onay bekliyor': 'amber', 'İşlemde': 'blue', 'Parça bekliyor': 'orange',
+  'Son kontrol': 'blue', 'Teslime hazır': 'green', 'Teslim edildi': 'done',
   'Taslak': 'slate', 'Gönderildi': 'amber', 'Onaylandı': 'green', 'Reddedildi': 'red', 'Geçersiz': 'muted',
   'Uygun': 'green', 'Takip edilmeli': 'amber', 'Acil': 'red',
 };
@@ -112,4 +113,42 @@ export function Stat({ label, value, foot, tone, href, spark }: { label: string;
   const body = <><span className="stat-label">{label}</span><strong className={'stat-value ' + (tone ?? '')}>{value}</strong>{foot && <span className="stat-foot">{foot}</span>}{spark && <Spark values={spark} />}</>;
   const cls = 'stat ' + (tone ? 'tone-' + tone : '');
   return href ? <Link href={href} className={cls + ' link'}>{body}</Link> : <div className={cls}>{body}</div>;
+}
+
+/** Ana menü öğesinin altındaki sayfalar arasında geçiş (ör. Müşteriler · Araçlar · Hatırlatmalar). */
+export function SubNav({ items }: { items: [href: string, label: string, count?: number][] }) {
+  const path = (usePathname() || '/').replace(/\/$/, '') || '/';
+  if (items.length < 2) return null;
+  return <nav className="subnav" aria-label="Alt bölümler">{items.map(([href, label, count]) => {
+    const on = path === href || path.startsWith(href + '/');
+    return <Link key={href} href={href} className={on ? 'active' : ''} aria-current={on ? 'page' : undefined}>{label}{!!count && <span className="tab-count">{count}</span>}</Link>;
+  })}</nav>;
+}
+
+/** Menüden kaldırılan eski adresleri yeni yerine yönlendirir (yer imleri kırılmasın). */
+export function Redirect({ to, label }: { to: string; label: string }) {
+  const router = useRouter();
+  useEffect(() => { router.replace(to) }, [router, to]);
+  return <Empty icon="arrow" title={label}><Link href={to}>Devam etmek için tıklayın</Link></Empty>;
+}
+
+export interface MenuItem { label: string; icon?: IconName; onClick?: () => void; href?: string; target?: string; danger?: boolean }
+/** Üç noktalı işlem menüsü: ana eylem dışındaki seçenekler. */
+export function Menu({ items, label = 'Diğer işlemler' }: { items: MenuItem[]; label?: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) };
+    document.addEventListener('pointerdown', close); document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', esc) };
+  }, [open]);
+  if (!items.length) return null;
+  return <div className="menu" ref={ref}>
+    <button type="button" className="btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>{label}<Icon name="down" size={14} /></button>
+    {open && <div className="menu-pop" role="menu">{items.map(i => i.href
+      ? <Link key={i.label} role="menuitem" href={i.href} target={i.target} className="menu-item" onClick={() => setOpen(false)}>{i.icon && <Icon name={i.icon} size={15} />}{i.label}</Link>
+      : <button key={i.label} type="button" role="menuitem" className={'menu-item ' + (i.danger ? 'danger' : '')} onClick={() => { setOpen(false); i.onClick?.() }}>{i.icon && <Icon name={i.icon} size={15} />}{i.label}</button>)}</div>}
+  </div>;
 }

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/components/store';
 import { Button, Card, Empty, PageHeader, Score, Search } from '@/components/ui';
 import { CustomerForm } from '@/components/forms';
+import { RecordsNav } from '@/components/subnavs';
 import { balance, customerScore } from '@/lib/rules';
 import { fmtDate, fold, money } from '@/lib/format';
 
@@ -24,7 +25,8 @@ export default function CustomersPage() {
     }).sort((a, b) => (b.last ?? '').localeCompare(a.last ?? ''));
 
   return <>
-    <PageHeader title="Müşteriler" sub={`${state.customers.length} kayıt · bireysel ve kurumsal`} actions={<Button variant="primary" icon="plus" onClick={() => setForm(true)}>Yeni müşteri</Button>} />
+    <PageHeader title="Müşteriler" actions={<Button variant="primary" icon="plus" onClick={() => setForm(true)}>Yeni müşteri</Button>} />
+    <RecordsNav />
     <div className="toolbar">
       <div className="seg">{[['', 'Tümü'], ['Bireysel', 'Bireysel'], ['Kurumsal', 'Kurumsal']].map(([k, l]) => <button key={k} className={kind === k ? 'active' : ''} onClick={() => setKind(k)}>{l}</button>)}</div>
       <div className="toolbar-end"><Search value={q} onChange={setQ} placeholder="Ad, müşteri no, telefon, e-posta" /></div>
@@ -34,9 +36,9 @@ export default function CustomersPage() {
         <thead><tr><th>Müşteri</th><th className="hide-sm">Telefon</th><th className="num">Araç</th><th className="num hide-sm">Ziyaret</th><th className="hide-sm">Son ziyaret</th><th className="hide-sm">Değerlendirme</th><th className="num">Açık bakiye</th></tr></thead>
         <tbody>{rows.map(({ c, vehicles, visits, last, open, score }) => <tr key={c.id} className="row-link" onClick={() => router.push(detailHref('/musteriler/detay', c.id))}>
           <td><Link href={detailHref('/musteriler/detay', c.id)} className="strong" onClick={e => e.stopPropagation()}>{c.name}</Link><small className="cell-sub">{c.no} · {c.kind}</small></td>
-          <td className="hide-sm">{c.phone}</td><td className="num">{vehicles}</td><td className="num hide-sm">{visits}</td>
+          <td className="hide-sm nowrap">{c.phone}</td><td className="num">{vehicles}</td><td className="num hide-sm">{visits}</td>
           <td className="hide-sm">{last ? fmtDate(last) : '—'}</td>
-          <td className="hide-sm">{score ? <Score value={score.overall} /> : <span className="muted small">Değerlendirme yok</span>}</td>
+          <td className="hide-sm">{score ? <Score value={score.overall} /> : <span className="muted">—</span>}</td>
           <td className={'num ' + (open > 0 ? 'text-bad strong' : '')}>{open > 0 ? money(open) : '—'}</td>
         </tr>)}</tbody>
       </table></div> : <Empty icon="users" title="Müşteri bulunamadı" />}

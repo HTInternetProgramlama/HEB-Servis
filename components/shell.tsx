@@ -8,20 +8,34 @@ import { Icon, type IconName } from './icons';
 import { Avatar } from './ui';
 import { Plate } from './vehicle-identity';
 import { DriftLoader } from './car-art';
-import { can, dueReminders, roleLabel, type Permission } from '@/lib/rules';
+import { can, roleLabel, type Permission } from '@/lib/rules';
+import type { Actor } from '@/lib/types';
 import { fmtLongDate, fold, normalizePlate, today } from '@/lib/format';
 
-interface NavItem { href: string; label: string; icon: IconName; perm?: Permission; badge?: number; tech?: boolean; hot?: boolean }
+interface NavItem { href: string; label: string; icon: IconName; perm?: Permission; badge?: number; tech?: boolean; hot?: boolean; also?: string[] }
 
+/** Yazı logosu: ikon ve slogan yok. */
 export function Logo({ light }: { light?: boolean }) {
-  return <span className={'logo ' + (light ? 'light' : '')}>
-    <svg className="logo-mark" viewBox="0 0 48 48" width="32" height="32" aria-hidden="true"><rect width="48" height="48" rx="12" fill="var(--accent, #d9480f)" /><path d="M11 12h7v11h12V12h7v24h-7v-7H18v7h-7Z" fill="#fff" /><path d="M23 11h2v6h-2zm0 22h2v5h-2z" fill="#fff" opacity=".65" /></svg>
-    <span className="logo-text"><b>HEB</b> Servis</span>
-  </span>;
+  return <span className={'logo ' + (light ? 'light' : '')}><span className="logo-text"><b>HEB</b> Servis</span></span>;
 }
 
 export function Loading() {
-  return <div className="boot"><Logo /><DriftLoader label="Atölye hazırlanıyor…" /></div>;
+  return <div className="boot"><Logo /><DriftLoader label="Yükleniyor…" /></div>;
+}
+
+/** Menü: 6 ana öğe + altta Ayarlar. Menüden çıkan sayfalar ilgili ana öğenin altında açılır (also). */
+export function navItems(actor: Actor, counts: { requests: number; approvals: number }): NavItem[] {
+  const items: NavItem[] = [
+    { href: '/', label: 'Pano', icon: 'board', tech: true, also: ['/atolye'] },
+    { href: '/randevular', label: 'Randevular', icon: 'calendar', perm: 'appointment.manage', badge: counts.requests, hot: true },
+    { href: '/is-emirleri', label: 'İş Emirleri', icon: 'wrench', tech: true, badge: actor.role === 'technician' ? 0 : counts.approvals, also: ['/teklifler'] },
+    can(actor, 'customer.write')
+      ? { href: '/musteriler', label: 'Müşteriler', icon: 'users', perm: 'customer.write', also: ['/araclar', '/hatirlatmalar'] }
+      : { href: '/araclar', label: 'Araçlar', icon: 'car', tech: true },
+    { href: '/katalog', label: 'Stok', icon: 'package', perm: 'estimate.write' },
+    { href: '/raporlar', label: 'Raporlar', icon: 'chart', perm: 'reports.read', also: ['/tahsilat'] },
+  ];
+  return items.filter(i => i.perm ? can(actor, i.perm) : i.tech);
 }
 
 export function StaffShell({ children }: { children: React.ReactNode }) {
@@ -38,56 +52,41 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
   useEffect(() => setMenu(false), [path]);
 
   const counts = useMemo(() => {
-    if (!state) return { requests: 0, approvals: 0, reminders: 0 };
+    if (!state) return { requests: 0, approvals: 0 };
     return {
       requests: state.appointments.filter(a => a.status === 'Bekliyor').length,
       approvals: state.jobs.filter(j => j.estimates.at(-1)?.status === 'Gönderildi').length,
-      reminders: dueReminders(state).filter(r => !r.hasAppointment).length,
     };
   }, [state]);
 
   if (!ready || !state || !actor || actor.role === 'customer') return <Loading />;
 
-  const groups: [string, NavItem[]][] = [
-    ['Operasyon', [
-      { href: '/', label: 'Genel bakış', icon: 'dashboard', tech: true },
-      { href: '/randevular', label: 'Randevu takvimi', icon: 'calendar', perm: 'appointment.manage', badge: counts.requests, hot: true },
-      { href: '/atolye', label: 'Atölye panosu', icon: 'board', tech: true },
-      { href: '/is-emirleri', label: 'İş emirleri', icon: 'wrench', tech: true },
-      { href: '/teklifler', label: 'Teklif onayları', icon: 'receipt', perm: 'estimate.write', badge: counts.approvals, hot: true },
-      { href: '/yapay-zeka', label: 'Yapay zekâ asistanı', icon: 'sparkle', perm: 'inspection.write' },
-    ]],
-    ['Kayıtlar', [
-      { href: '/musteriler', label: 'Müşteriler', icon: 'users', perm: 'customer.write' },
-      { href: '/araclar', label: 'Araçlar', icon: 'car', tech: true },
-      { href: '/hatirlatmalar', label: 'Bakım hatırlatmaları', icon: 'bell', perm: 'reminder.write', badge: counts.reminders },
-    ]],
-    ['Finans ve rapor', [
-      { href: '/tahsilat', label: 'Tahsilat', icon: 'wallet', perm: 'payment.read' },
-      { href: '/raporlar', label: 'Raporlar', icon: 'chart', perm: 'reports.read' },
-    ]],
-    ['Yönetim', [
-      { href: '/katalog', label: 'Parça ve işçilik', icon: 'package', perm: 'estimate.write' },
-      { href: '/ayarlar', label: 'Ayarlar ve personel', icon: 'settings', perm: 'settings.write' },
-      { href: '/gunluk', label: 'İşlem günlüğü', icon: 'history', perm: 'audit.read' },
-    ]],
+  const items = navItems(actor, counts);
+  const under = (base: string) => base === '/' ? path === '/' : path === base || path.startsWith(base + '/');
+  const active = (i: NavItem) => under(i.href) || !!i.also?.some(under);
+  const settingsActive = under('/ayarlar') || under('/gunluk');
+  const pages: NavItem[] = [
+    ...items,
+    ...(can(actor, 'estimate.write') ? [{ href: '/is-emirleri?filtre=onay', label: 'Teklif onayları', icon: 'receipt' as const }] : []),
+    ...(can(actor, 'payment.read') ? [{ href: '/tahsilat', label: 'Tahsilat', icon: 'wallet' as const }] : []),
+    ...(can(actor, 'reminder.write') ? [{ href: '/hatirlatmalar', label: 'Bakım hatırlatmaları', icon: 'bell' as const }] : []),
+    ...(can(actor, 'customer.write') ? [{ href: '/araclar', label: 'Araçlar', icon: 'car' as const }] : []),
+    ...(can(actor, 'inspection.write') ? [{ href: '/yapay-zeka', label: 'Yapay zekâ asistanı', icon: 'sparkle' as const }] : []),
+    ...(can(actor, 'settings.write') ? [{ href: '/ayarlar', label: 'Ayarlar', icon: 'settings' as const }] : []),
+    ...(can(actor, 'audit.read') ? [{ href: '/gunluk', label: 'İşlem günlüğü', icon: 'history' as const }] : []),
   ];
-  const visible = groups.map(([g, items]) => [g, items.filter(i => i.perm ? can(actor, i.perm) : i.tech)] as [string, NavItem[]]).filter(([, items]) => items.length);
-  const active = (href: string) => href === '/' ? path === '/' : path.startsWith(href);
 
   return <div className={'shell ' + (menu ? 'menu-open' : '')}>
     <aside className="sidebar">
-      <div className="side-top"><Link href="/" aria-label="Genel bakış"><Logo /></Link></div>
-      <div className="side-branch"><Icon name="building" size={15} /><div><strong>{state.settings.company.branch}</strong><small>{state.settings.company.address.split(',').at(-1)?.trim()}</small></div></div>
-      <nav className="side-nav">
-        {visible.map(([g, items]) => <div key={g} className="side-group"><span className="side-label">{g}</span>
-          {items.map(i => <Link key={i.href} href={i.href} className={'side-link ' + (active(i.href) ? 'active' : '')} aria-current={active(i.href) ? 'page' : undefined}>
-            <Icon name={i.icon} size={16} /><span>{i.label}</span>{!!i.badge && <em className={'side-badge ' + (i.hot ? 'hot' : '')}>{i.badge}</em>}
-          </Link>)}
-        </div>)}
+      <div className="side-top"><Link href="/" aria-label="Pano"><Logo /></Link></div>
+      <nav className="side-nav" aria-label="Ana menü">
+        {items.map(i => <Link key={i.href} href={i.href} className={'side-link ' + (active(i) ? 'active' : '')} aria-current={active(i) ? 'page' : undefined}>
+          <Icon name={i.icon} size={17} /><span>{i.label}</span>{!!i.badge && <em className={'side-badge ' + (i.hot ? 'hot' : '')}>{i.badge}</em>}
+        </Link>)}
       </nav>
       <div className="side-foot">
-        <div className="side-user"><Avatar name={actor.name} size={30} /><div><strong>{actor.name}</strong><small>{roleLabel[actor.role]}</small></div>
+        {can(actor, 'settings.write') && <Link href="/ayarlar" className={'side-link ' + (settingsActive ? 'active' : '')} aria-current={settingsActive ? 'page' : undefined}><Icon name="settings" size={17} /><span>Ayarlar</span></Link>}
+        <div className="side-user"><Avatar name={actor.name} size={28} /><div><strong>{actor.name}</strong><small>{roleLabel[actor.role]}</small></div>
           <button className="icon-btn" onClick={async () => { await logout(); router.replace('/giris') }} aria-label="Oturumu kapat" title="Oturumu kapat"><Icon name="logout" size={16} /></button></div>
       </div>
     </aside>
@@ -95,9 +94,11 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
     <div className="main">
       <header className="topbar">
         <button className="icon-btn menu-btn" onClick={() => setMenu(!menu)} aria-label="Menü" aria-expanded={menu}><Icon name="menu" size={18} /></button>
-        <CommandPalette groups={visible} />
+        <CommandPalette pages={pages} />
         <div className="top-right">
           <span className="top-date">{fmtLongDate(today())}</span>
+          {can(actor, 'inspection.write') && <Link href="/yapay-zeka" className={'btn sm ghost top-assist ' + (under('/yapay-zeka') ? 'on' : '')} title="Yapay zekâ asistanı"><Icon name="sparkle" size={15} /><span>Asistan</span></Link>}
+          {can(actor, 'job.create') && <Link href="/is-emirleri?yeni=1" className="btn sm primary top-new" title="Yeni iş emri"><Icon name="plus" size={15} /><span>Yeni iş emri</span></Link>}
           <ThemeToggle />
         </div>
       </header>
@@ -121,7 +122,7 @@ export function ThemeToggle() {
   </button>;
 }
 
-function CommandPalette({ groups }: { groups: [string, NavItem[]][] }) {
+function CommandPalette({ pages: nav }: { pages: NavItem[] }) {
   const { state, actor, logout } = useStore();
   const router = useRouter();
   const ref = useRef<HTMLDialogElement>(null);
@@ -162,14 +163,14 @@ function CommandPalette({ groups }: { groups: [string, NavItem[]][] }) {
           found.push({ key: 'c' + c.id, group: 'Müşteriler', icon: 'user', label: c.name, title: <b>{c.name}</b>, sub: `${c.no} · ${c.phone}`, run: go(detailHref('/musteriler/detay', c.id)) });
     }
     const actions: PaletteItem[] = [];
-    if (can(actor, 'job.create')) actions.push({ key: 'a-intake', group: 'Komutlar', icon: 'plus', label: 'Yeni araç kabul iş emri', title: 'Yeni araç kabul', sub: 'İş emri aç', run: go('/is-emirleri?yeni=1') });
+    if (can(actor, 'job.create')) actions.push({ key: 'a-intake', group: 'Komutlar', icon: 'plus', label: 'Yeni iş emri araç kabul', title: 'Yeni iş emri', sub: 'Araç kabul', run: go('/is-emirleri?yeni=1') });
     if (can(actor, 'appointment.manage')) actions.push({ key: 'a-appt', group: 'Komutlar', icon: 'calendar', label: 'Randevu takvimi', title: 'Randevu takvimini aç', run: go('/randevular') });
     actions.push({ key: 'a-theme', group: 'Komutlar', icon: 'moon', label: 'Tema açık koyu karanlık', title: 'Açık/koyu temaya geç', run: () => setTheme() });
     actions.push({ key: 'a-out', group: 'Komutlar', icon: 'logout', label: 'Oturumu kapat çıkış', title: 'Oturumu kapat', run: () => { void logout().then(() => router.replace('/giris')) } });
-    const pages: PaletteItem[] = groups.flatMap(([g, entries]) => entries.map(i => ({ key: 'p' + i.href, group: 'Sayfalar', icon: i.icon, label: i.label, title: i.label, sub: g, run: go(i.href) })));
+    const pages: PaletteItem[] = nav.map(i => ({ key: 'p' + i.href, group: 'Sayfalar', icon: i.icon, label: i.label, title: i.label, run: go(i.href) }));
     const match = (i: PaletteItem) => !term || fold(i.label + ' ' + (i.sub ?? '')).includes(term);
     return [...found.slice(0, 12), ...actions.filter(match), ...pages.filter(match)];
-  }, [state, actor, q, groups, router, logout]);
+  }, [state, actor, q, nav, router, logout]);
   useEffect(() => { list.current?.querySelector('.cmdk-item.on')?.scrollIntoView({ block: 'nearest' }) }, [sel]);
   const choose = (i?: PaletteItem) => { if (!i) return; setOpen(false); i.run() };
   const rows: React.ReactNode[] = [];
@@ -181,7 +182,7 @@ function CommandPalette({ groups }: { groups: [string, NavItem[]][] }) {
   });
   return <>
     <button type="button" className="global-search" onClick={() => setOpen(true)} aria-label="Ara veya komut çalıştır">
-      <Icon name="search" size={15} /><span>Plaka, iş emri, müşteri ara veya komut çalıştır</span><kbd>Ctrl K</kbd>
+      <Icon name="search" size={15} /><span>Plaka, iş emri veya müşteri ara</span><kbd>Ctrl K</kbd>
     </button>
     <dialog ref={ref} className="cmdk" aria-label="Komut paleti" onClose={() => setOpen(false)} onClick={e => { if (e.target === ref.current) setOpen(false) }}>
       {open && <>

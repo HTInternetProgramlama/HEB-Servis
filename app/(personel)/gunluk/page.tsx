@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useApp } from '@/components/store';
 import { Card, Empty, PageHeader, Search } from '@/components/ui';
 import { can, roleLabel } from '@/lib/rules';
+import { SettingsNav } from '@/components/subnavs';
 import { fmtDateTime, fold } from '@/lib/format';
 
 export default function AuditPage() {
@@ -11,7 +12,8 @@ export default function AuditPage() {
   if (!can(actor, 'audit.read')) return <Empty icon="lock" title="Bu sayfa yalnız yöneticiye açıktır" />;
   const rows = state.audit.filter(a => !q || fold(`${a.action} ${a.by} ${a.ref ?? ''}`).includes(fold(q)));
   return <>
-    <PageHeader title="İşlem günlüğü" sub="Kim, ne zaman, hangi işlemi yaptı. Son 500 kayıt bu tarayıcıda tutulur." />
+    <PageHeader title="Ayarlar" />
+    <SettingsNav />
     <div className="toolbar"><Search value={q} onChange={setQ} placeholder="İşlem, kullanıcı veya kayıt no" /></div>
     <Card flush>{rows.length ? <div className="table-wrap"><table className="table">
       <thead><tr><th>Zaman</th><th>Kullanıcı</th><th className="hide-sm">Rol</th><th>İşlem</th><th className="hide-sm">Kayıt</th></tr></thead>

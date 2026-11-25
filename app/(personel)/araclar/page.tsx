@@ -7,6 +7,7 @@ import { useApp } from '@/components/store';
 import { Button, Card, Empty, PageHeader, Search, Status } from '@/components/ui';
 import { BrandMark, VehicleCell } from '@/components/vehicle-identity';
 import { VehicleForm } from '@/components/forms';
+import { RecordsNav } from '@/components/subnavs';
 import { can } from '@/lib/rules';
 import { fmtDate, fold, normalizePlate, today } from '@/lib/format';
 
@@ -20,7 +21,8 @@ export default function VehiclesPage() {
   const staffCustomers = can(actor, 'customer.write');
 
   return <>
-    <PageHeader title="Araçlar" sub={`${state.vehicles.length} kayıtlı araç`} actions={can(actor, 'vehicle.write') && <Button variant="primary" icon="plus" onClick={() => setForm(true)}>Yeni araç</Button>} />
+    <PageHeader title={staffCustomers ? 'Müşteriler' : 'Araçlar'} actions={can(actor, 'vehicle.write') && <Button variant="primary" icon="plus" onClick={() => setForm(true)}>Yeni araç</Button>} />
+    <RecordsNav />
     <div className="toolbar"><Search value={q} onChange={setQ} placeholder="Plaka, marka, model, şasi no veya sahip" /></div>
     <Card flush>{rows.length ? <div className="table-wrap"><table className="table">
       <thead><tr><th>Araç</th><th className="hide-sm">Marka</th><th className="hide-sm">Sahibi</th><th className="hide-sm">Yakıt</th><th className="hide-sm">Sonraki bakım</th><th>Durum</th></tr></thead>

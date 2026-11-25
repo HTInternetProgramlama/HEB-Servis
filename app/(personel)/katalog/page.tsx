@@ -17,7 +17,7 @@ export default function CatalogPage() {
   const rows = state.catalog.filter(c => (!kind || c.kind === kind) && (!q || fold(c.code + ' ' + c.name).includes(fold(q))));
 
   return <>
-    <PageHeader title="Parça ve işçilik fiyat listesi" sub={`Teklif kalemlerinde kullanılan liste fiyatları (KDV hariç). Kapsamlı stok/depo takibi bu sürümün kapsamı dışındadır.${writable ? '' : ' Fiyatları yalnız yönetici değiştirebilir.'}`}
+    <PageHeader title="Stok" sub={`Parça ve işçilik kalemleri · liste fiyatları KDV hariç${writable ? '' : ' · fiyatları yönetici değiştirir'}`}
       actions={writable && <Button variant="primary" icon="plus" onClick={() => setEdit({})}>Yeni kalem</Button>} />
     <div className="toolbar">
       <div className="seg">{([['', 'Tümü'], ['Parça', 'Parça'], ['İşçilik', 'İşçilik']] as const).map(([k, l]) => <button key={k} className={kind === k ? 'active' : ''} onClick={() => setKind(k)}>{l}</button>)}</div>
