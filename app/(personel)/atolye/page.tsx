@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useApp } from '@/components/store';
 import { PageHeader, Search } from '@/components/ui';
 import { JobTable } from '@/components/job-table';
+import { jobActionLabel } from '@/components/job-action-label';
 import { Icon } from '@/components/icons';
 import { CarImage, Plate } from '@/components/vehicle-identity';
 import { allowedMoves, moveJob, staffName, technicians, can } from '@/lib/commands';
@@ -28,6 +29,7 @@ export default function Workshop() {
   const { state, actor, run } = useApp();
   const [tech, setTech] = useState(actor.role === 'technician' ? actor.userId : '');
   const [view, setView] = useState('board');
+  const [mobileColumn, setMobileColumn] = useState(2);
   const [q, setQ] = useState('');
   const [dragged, setDragged] = useState('');
   const [notice, setNotice] = useState('');
@@ -42,8 +44,12 @@ export default function Workshop() {
   const jobs = state.jobs.filter(j => (actor.role !== 'technician' || j.technicianId === actor.userId) && (!tech || j.technicianId === tech) &&
     (view !== 'parts' || j.status === 'Parça bekliyor') && fold([j.no, state.vehicles.find(v => v.id === j.vehicleId)?.plate, state.customers.find(c => c.id === j.customerId)?.name].join(' ')).includes(fold(q)));
 
+  const boardDay = today();
+  const columnJobs = columns.map((_, index) => jobs.filter(j => columnOf(j) === index &&
+    (index !== 4 || (!!j.deliveredAt && isoDay(j.deliveredAt) === boardDay))));
+
   return <>
-    <PageHeader title="İş Akışı" sub="Kabulden teslime servis işleri" actions={<Link className="btn" href="/is-emirleri">Tüm kayıtlar ve iptaller</Link>} />
+    <PageHeader title="İş Akışı" sub="Kabulden teslime servis işleri" actions={<Link className="btn" href="/is-emirleri"><Icon name="menu" size={16} />Liste</Link>} />
     <div className="toolbar workflow-toolbar">
       <div className="seg">{[['board', 'Sütunlar'], ['list', 'Liste'], ['parts', 'Parça durumu']].map(([v, label]) => <button key={v} className={view === v ? 'active' : ''} onClick={() => setView(v)}>{label}</button>)}</div>
       {actor.role !== 'technician' && <select className="select" value={tech} onChange={e => setTech(e.target.value)} aria-label="Teknisyen filtresi"><option value="">Tüm teknisyenler</option>{technicians(state).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>}
@@ -60,17 +66,24 @@ export default function Workshop() {
     </div>
     {view === 'parts' && <p className="banner">Parça bekleyen işler gösteriliyor. Bekleme gerekçesi iş emrinin notlarında bulunur.</p>}
     {notice && <p className="banner warn" role="status">{notice}</p>}
+    {view !== 'list' && <div className="mobile-column-picker seg" role="group" aria-label="Gösterilen iş akışı sütunu">
+      {order.map(index => <button key={index} type="button" className={mobileColumn === index ? 'active' : ''} aria-pressed={mobileColumn === index} onClick={() => setMobileColumn(index)}>
+        {columns[index].title}{index === 4 ? ' · bugün' : ''}<span className="seg-count">{columnJobs[index].length}</span>
+      </button>)}
+    </div>}
     {view === 'list' ? <div className="card table-wrap"><JobTable jobs={jobs} /></div> : <div className="board" aria-label="İş akışı sütunları">
       {order.map(index => columns[index]).map(col => {
-        const items = jobs.filter(j => columnOf(j) === columns.indexOf(col));
-        return <section key={col.title} className={'board-col col-' + columns.indexOf(col)} onDragOver={e => { if (dragged) e.preventDefault() }} onDrop={e => {
+        const index = columns.indexOf(col);
+        const items = columnJobs[index];
+        return <section key={col.title} className={'board-col col-' + index + (mobileColumn === index ? ' mobile-selected' : '')} onDragOver={e => { if (dragged) e.preventDefault() }} onDrop={e => {
           e.preventDefault(); const job = jobs.find(j => j.id === dragged); setDragged('');
           if (!job || col.statuses.includes(job.status)) return;
           const move = allowedMoves(job, actor).find(m => col.statuses.includes(m));
           if (move) { setNotice(''); void run((s, a) => moveJob(s, a, job.id, move), `${job.no} → ${move}`, job.no) }
           else setNotice(`${job.no} bu sütuna doğrudan taşınamaz. İş emrindeki sıradaki işlemi tamamlayın.`);
         }}>
-          <header><span>{col.title}</span><em>{items.length}</em></header>
+          <header><span>{col.title}{index === 4 && <small className="muted">Bugün</small>}</span><em>{items.length}</em></header>
+          {index === 4 && <Link className="board-all" href="/is-emirleri?durum=teslim">Teslim edilenlerin tümü</Link>}
           <div className="board-items">
             {items.map(j => {
               const v = state.vehicles.find(x => x.id === j.vehicleId);
@@ -88,7 +101,7 @@ export default function Workshop() {
                   <small className="muted">Akış ilerlemesi %{progress}</small>
                   <div className="board-meta"><span><Icon name="user" size={15} />{staffName(state, j.technicianId)}</span><span><Icon name="clock" size={15} />Söz verilen: {isoDay(j.promisedAt) !== today() && fmtDate(j.promisedAt) + ' '}{fmtTime(j.promisedAt)}</span></div>
                 </Link>
-                {moves.length > 0 && <div className="board-actions">{moves.map(m => <button key={m} className="btn sm" onClick={() => run((s, a) => moveJob(s, a, j.id, m), `${j.no} → ${m}`, j.no)}>{m}</button>)}</div>}
+                {moves.length > 0 && <div className="board-actions">{moves.map(m => <button key={m} className="btn sm" onClick={() => run((s, a) => moveJob(s, a, j.id, m), `${j.no} → ${m}`, j.no)}>{jobActionLabel(m, j.status)}</button>)}</div>}
               </article>;
             })}
             {!items.length && <p className="board-empty">Kayıt yok</p>}

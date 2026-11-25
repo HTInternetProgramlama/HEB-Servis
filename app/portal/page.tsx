@@ -40,7 +40,7 @@ export default function PortalHome() {
       return <Card key={j.id} className={'portal-active ' + (e?.status === 'Gönderildi' ? 'attention' : '')}>
         <div className="row-between wrap"><div className="title-row"><Plate value={v.plate} /><strong>{v.brand} {v.model}</strong></div><Status value={j.status} /></div>
         <p className="lead">{customerText[j.status]}</p>
-        <ol className="stepper compact">{steps.map((s, i) => <li key={s} className={i < step ? 'done' : i === step ? 'current' : ''}><span>{i < step ? <Icon name="check" size={11} /> : i + 1}</span>{s}</li>)}</ol>
+        <ol className="stepper compact" aria-label="Servis aşamaları">{steps.map((s, i) => <li key={s} aria-label={s} aria-current={i === step ? 'step' : undefined} className={i < step ? 'done' : i === step ? 'current' : ''}><span>{i < step ? <Icon name="check" size={11} /> : i + 1}</span><b className="portal-step-label">{s}</b></li>)}</ol>
         <div className="row-between wrap mt">
           <span className="muted small">İş emri {j.no} · tahmini teslim {fmtDateTime(j.promisedAt)}</span>
           {e?.status === 'Gönderildi' ? <Link className="btn primary" href={detailHref('/portal/servis', j.id)}>Teklifi incele · {money(estimateTotals(e).total)}<Icon name="arrow" size={14} /></Link>

@@ -12,11 +12,16 @@
   --line: #344a4a; --line-strong: #4a6262; --ink: #eef5f4; --ink-2: #c8d9d6; --muted: #a3bcb7; --subtle: #95aaa6;
   --accent: #68d3bf; --accent-hover: #8ee3d3; --accent-soft: #23463f; --accent-line: #3d6f64; --accent-ink: #a5eddd;
   --link: #86dfcd; --focus: #68d3bf; --focus-ring: 0 0 0 3px #68d3bf30; --on-accent: #12362e;
-  /* İkon rayı koyu temada da açık kalır. */
-  --side: #dce7e3; --side-ink: #35554b; --side-active: #c2ddd2; --chart-2: #6fadb8;
+  --side: var(--surface); --side-ink: var(--ink-2); --side-active: var(--accent-soft); --chart-2: #6fadb8;
 }
+.login { grid-template-columns: minmax(0, 1fr); background: var(--bg) }
+.login-panel { min-height: 100dvh }
+.mobile-column-picker { display: none }
+.board-col header > span { min-width: 0 }
+.board-col header small { display: block; font-weight: 400; font-size: 12px }
+.board-all { display: flex; align-items: center; min-height: 44px; padding: 0 12px 8px; font-size: 13px; text-decoration: underline }
 body { font-size: 15px; line-height: 1.5 }
-.sidebar { width: 76px; background: var(--side); color: var(--side-ink); border-color: #cbd8d3 }
+.sidebar { width: 76px; background: var(--side); color: var(--side-ink); border-color: var(--line) }
 .side-top { height: 80px; padding: 0; justify-content: center }
 .sidebar .logo-text, .side-label, .side-user > div { display: none }
 .sidebar .logo-mark { width: 36px; height: 36px }
@@ -24,15 +29,15 @@ body { font-size: 15px; line-height: 1.5 }
 .side-group { margin: 0; display: grid; gap: 8px }
 .side-link { min-height: 62px; padding: 8px 2px; display: flex; flex-direction: column; gap: 5px; justify-content: center; border-radius: 8px; color: var(--side-ink); font-size: 11px }
 .side-link > .icon { width: 21px; height: 21px }
-.side-link.active { color: #115e59; background: var(--side-active); box-shadow: none }
-.sidebar .side-link .icon { color: #506e63 }
-.sidebar .side-link.active .icon { color: #115e59 }
+.side-link.active { color: var(--accent-ink); background: var(--side-active); box-shadow: none }
+.sidebar .side-link .icon { color: var(--side-ink) }
+.sidebar .side-link.active .icon { color: var(--accent-ink) }
 .side-link.active::before { display: none }
-.side-link:hover { background: #cfe1d9; color: #115e59 }
-.side-foot { padding: 8px 6px; border-color: #cbd8d3; margin-top: auto }
+.side-link:hover { background: var(--side-active); color: var(--accent-ink) }
+.side-foot { padding: 8px 6px; border-color: var(--line); margin-top: auto }
 .side-user { padding: 10px 0 0; flex-direction: column; gap: 5px }
 .side-user .avatar { background: #c4dad1; color: #214f40 }
-.side-user .icon-btn { color: #35554b }
+.side-user .icon-btn { color: var(--side-ink) }
 .rail-tools { position: relative }
 .rail-tools summary { list-style: none; min-height: 56px; display: grid; justify-items: center; align-content: center; gap: 4px; cursor: pointer; font-size: 11px }
 .rail-tools summary::-webkit-details-marker { display: none }
@@ -59,12 +64,13 @@ body { font-size: 15px; line-height: 1.5 }
 .board-settings summary::-webkit-details-marker { display: none }
 .board-settings > div { position: absolute; z-index: 25; top: 52px; left: 0; width: 280px; max-width: calc(100vw - 28px); padding: 16px; display: grid; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-pop) }
 .board-settings label { display: flex; align-items: center; justify-content: space-between; gap: 12px }
-.board { grid-template-columns: repeat(5, minmax(258px, 1fr)); gap: 16px; padding-bottom: 18px; scrollbar-width: auto; scroll-snap-type: x proximity }
+.board { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; padding-bottom: 18px; scrollbar-width: auto; scroll-snap-type: x proximity }
 .board-col { min-height: 300px; scroll-snap-align: start; background: var(--surface-2); border-top-width: 3px }
 .board-col header { min-height: 60px; padding: 14px; font-size: 16px }
 .board-col header em { display: grid; place-items: center; min-width: 28px; height: 28px; border-radius: 6px; background: var(--surface); color: var(--ink); font-size: 15px }
 .board-items { padding: 0 10px 12px; gap: 12px }
-.board-link { padding: 14px; gap: 10px }
+.board-link { padding: 10px; gap: 10px; min-width: 0; overflow-wrap: anywhere }
+.board-link > .row-between { flex-wrap: wrap; gap: 4px }
 .board-art { background: var(--surface-2); padding: 0 12px; border-radius: 6px }
 .board-art .car-img { max-height: 120px }
 .board-vehicle { flex-direction: column; align-items: flex-start; gap: 8px; font-size: 15px }
@@ -72,7 +78,7 @@ body { font-size: 15px; line-height: 1.5 }
 .board-complaint { font-size: 14px }
 .board-meta { display: grid; gap: 9px; font-size: 13px }
 .board-actions { padding: 10px; gap: 8px }
-.board-actions .btn { flex: 1 }
+.board-actions .btn { flex: 1; white-space: normal; line-height: 1.3 }
 .workflow-progress { height: 6px; overflow: hidden; border-radius: 4px; background: var(--surface-3) }
 .workflow-progress i { display: block; height: 100%; border-radius: inherit; background: var(--accent) }
 .board-empty { padding: 24px 8px; color: var(--muted); font-size: 14px }
@@ -119,6 +125,7 @@ body { font-size: 15px; line-height: 1.5 }
 .portal .card { box-shadow: var(--shadow) }
 .portal-head h1 { font-size: 26px }
 .portal-top { background: var(--surface) }
+.portal-step-label { font-weight: inherit }
 @media (max-width: 1100px) {
   .detail-layout { grid-template-columns: minmax(0, 1fr) 280px }
   .job-stepper li button { flex-direction: column; gap: 6px; min-width: 72px }
@@ -142,7 +149,18 @@ body { font-size: 15px; line-height: 1.5 }
   .page-actions { width: 100%; flex-wrap: wrap }
   .workflow-toolbar .seg { width: 100%; display: flex }
   .workflow-toolbar .seg button { flex: 1; padding: 8px }
-  .board { grid-template-columns: repeat(5, 292px); gap: 12px }
+  .mobile-column-picker.seg { display: flex; flex-wrap: wrap; gap: 4px }
+  .mobile-column-picker.seg button { flex: 1 1 30%; padding: 8px 6px; white-space: normal }
+  .board { grid-template-columns: minmax(0, 1fr); overflow: visible }
+  .board-col { display: none; min-height: 0 }
+  .board-col.mobile-selected { display: block }
+  .board-art .car-img { max-height: 140px }
+  .portal-active .stepper.compact { position: relative; overflow: visible; padding-bottom: 32px }
+  .portal-active .stepper.compact li { min-width: 0; padding: 0; justify-content: center }
+  .portal-active .stepper.compact li::after { display: none }
+  .portal-active .portal-step-label { display: none }
+  .portal-active .current .portal-step-label { display: block; position: absolute; left: 0; right: 0; bottom: 0; font-size: 14px; white-space: normal }
+  .portal-active .stepper.compact li span { flex-shrink: 0 }
   .detail-layout { grid-template-columns: minmax(0, 1fr) }
   .detail-side { grid-template-columns: minmax(0, 1fr) }
   .job-stepper li:not(.current) { font-size: 15px }

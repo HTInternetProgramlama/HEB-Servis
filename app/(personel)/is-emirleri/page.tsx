@@ -25,7 +25,11 @@ export default function JobsPage() {
   const [q, setQ] = useState('');
   const [group, setGroup] = useState(0);
   const [intake, setIntake] = useState(false);
-  useEffect(() => { if (new URLSearchParams(location.search).get('yeni') === '1' && can(actor, 'job.create')) setIntake(true) }, [actor]);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('yeni') === '1' && can(actor, 'job.create')) setIntake(true);
+    if (params.get('durum') === 'teslim') setGroup(3);
+  }, [actor]);
 
   const term = fold(q.trim()), plate = normalizePlate(q);
   const filter = groups[group][1];

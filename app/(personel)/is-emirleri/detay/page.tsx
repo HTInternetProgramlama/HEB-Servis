@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useApp } from '@/components/store';
 import { Button, Card, Empty, Field, FormError, KV, Modal, PageHeader, Status, Tabs, useFormRunner } from '@/components/ui';
+import { jobActionLabel } from '@/components/job-action-label';
 import { Icon } from '@/components/icons';
 import { CarDrawing, Plate } from '@/components/vehicle-identity';
 import { PaymentForm } from '@/components/payment';
@@ -49,6 +50,7 @@ function JobDetail() {
   const customer = state.customers.find(c => c.id === job.customerId)!;
   const moves = allowedMoves(job, actor);
   const latest = latestEstimate(job);
+  const nextMove = moves.find(m => m !== 'İptal' && m !== 'Parça bekliyor');
   const step = job.status === 'Teslim edildi' ? 6 : job.status === 'Teslime hazır' ? 5 : ['İşlemde', 'Parça bekliyor', 'Son kontrol'].includes(job.status) ? 4 : latest?.status === 'Gönderildi' || latest?.status === 'Onaylandı' ? 3 : latest ? 2 : job.status === 'İnceleniyor' ? 1 : 0;
   const showMoney = can(actor, 'payment.read');
 
@@ -63,7 +65,7 @@ function JobDetail() {
       title={<span className="title-row"><span className="mono">{job.no}</span><Status value={job.status} /></span>}
       sub={<>{serviceName(state, job.serviceId)} · kabul {fmtDateTime(job.createdAt)} · danışman {staffName(state, job.advisorId)}</>}
       actions={<details className="job-tools"><summary className="btn">Diğer işlemler</summary><div>
-        {moves.filter(m => m !== 'İptal').map(m => <Button key={m} variant="primary" onClick={() => doMove(m)}>{m === 'Teslime hazır' && job.status === 'Onay bekliyor' ? 'İşlemsiz teslime hazırla' : m}<Icon name="arrow" size={14} /></Button>)}
+        {moves.filter(m => m !== 'İptal').map(m => <Button key={m} variant="primary" onClick={() => doMove(m)}>{jobActionLabel(m, job.status)}<Icon name="arrow" size={14} /></Button>)}
         {job.status === 'Teslime hazır' && can(actor, 'payment.write') && <Button variant="primary" icon="check" onClick={() => setModal('deliver')}>Teslim et</Button>}
         {showMoney && balance(job) > 0 && <Button icon="wallet" onClick={() => setModal('payment')}>Tahsilat</Button>}
         {job.status === 'Teslim edildi' && can(actor, 'evaluation.write') && <Button icon="star" onClick={() => setModal('evaluate')}>Ziyareti değerlendir</Button>}
@@ -99,7 +101,7 @@ function JobDetail() {
           {latest?.status === 'Taslak' && can(actor, 'estimate.write') ? <Button variant="primary" onClick={() => selectTab('estimate')}>Teklifi hazırla ve gönder</Button>
             : latest?.status === 'Gönderildi' && can(actor, 'estimate.write') ? <Button variant="primary" onClick={() => selectTab('estimate')}>Müşteri onayını yönet</Button>
             : job.status === 'Teslime hazır' && can(actor, 'payment.write') ? <Button variant="primary" onClick={() => setModal(balance(job) > 0 ? 'payment' : 'deliver')}>{balance(job) > 0 ? 'Ödeme al' : 'Teslim et'}</Button>
-            : moves.find(m => m !== 'İptal' && m !== 'Parça bekliyor') ? <Button variant="primary" onClick={() => doMove(moves.find(m => m !== 'İptal' && m !== 'Parça bekliyor')!)}>{moves.find(m => m !== 'İptal' && m !== 'Parça bekliyor')}</Button>
+            : nextMove ? <Button variant="primary" onClick={() => doMove(nextMove)}>{jobActionLabel(nextMove, job.status)}</Button>
             : <Button onClick={() => selectTab('overview')}>Özeti incele</Button>}
         </Card>
         <Card title="Araç">

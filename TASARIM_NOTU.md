@@ -13,7 +13,7 @@ Dar ve açık renkli ikon rayında beş ana öğe: **İş Akışı, Takvim, Mü�
 ## Birleştirilen ekranlar ve erişim
 
 - Ayrı Genel bakış kaldırıldı. `/` artık İş Akışı panosudur; `/atolye` aynı panoyu sunan uyumlu adres olarak kalır.
-- İş emirleri ana menüden çıkarıldı. Pano içindeki Liste görünümü ve “Tüm kayıtlar ve iptaller” bağlantısı üzerinden erişilir. Eski liste/adres, filtreler ve kabul formu korunur.
+- İş emirleri İş Akışı altında toplanır. Sayfa başlığındaki görünür **Liste** düğmesi doğrudan `/is-emirleri` listesine gider; araç çubuğundaki Liste görünümü pano filtreleriyle çalışır. Eski liste/adres, filtreler ve kabul formu korunur.
 - Randevular tek **Takvim** adıyla sunulur; günlük alan planı ve talep yönetimi korunur.
 - Araçlar, **Müşteriler** içindeki araç kayıtları bağlantısına ve müşteri dosyasındaki Araçlar sekmesine bağlanır. Mevcut araç detay adresleri çalışır.
 - Parça ve işçilik kataloğu **Stok** adıyla sunulur. Katalog kapsamı ekranda açıklanır.
@@ -32,13 +32,21 @@ Dar ve açık renkli ikon rayında beş ana öğe: **İş Akışı, Takvim, Mü�
 
 ## Duyarlı düzen ve doğrulama
 
-1024 px için dar ray ve yatay kaydırılabilir beş sütun; 390 px için açılır ray, yatay kaydırılan kartlar/sekmeler/adımlar ve tek sütunlu iş emri düzeni tanımlandı. Başlıca düğme, arama, seçim, sekme ve görünürlük kontrolleri en az 44 px dokunma alanına sahiptir. Koyu tema korunur; ikon rayı koyu temada da açık renklidir.
+Masaüstünde (1024/1280 px) beş sütun kullanılabilir genişliği eşit paylaşır; sabit 258 px alt sınırı kaldırıldı ve kart içeriği sarılabilir. 390 px için açılır ray, **tek görünür pano sütunu** ve tek sütunlu iş emri düzeni tanımlandı. Mobil sütun segmentleri sayaç içerir; varsayılan **Serviste** sütunudur. Gizli sütunlar sayfayı uzatmaz. Başlıca düğme, arama, seçim, sekme ve görünürlük kontrolleri en az 44 px dokunma alanına sahiptir. Koyu temada ikon rayı koyu yüzey, açık temada açık gri yüzey kullanır; etkin/üzerine gelinen öğeler tema değişkenlerini izler.
+
+## Denetim düzeltmeleri · 25.11.2026
+
+- **Giriş:** Slogan, sahte iş emri/onay kartları, dekoratif önizleme ve teknik altyapı metni kaldırıldı. Ortalanmış logo/firma adı, oturum formu ve tema seçimi kaldı.
+- **Teslim:** Pano yalnız `deliveredAt` tarihi İstanbul saat diliminde bugün olan teslim edilmiş işleri gösterir. Başlık “Bugün” bilgisini içerir; **Teslim edilenlerin tümü** bağlantısı iş emirleri listesini Teslim edildi filtresiyle açar. Tarihi olmayan eski teslimler panoya girmez. Pano içindeki Liste görünümünde geçmiş kayıtlar korunur.
+- **Durum eylemleri:** Kartlar, iş emrinin Diğer işlemler menüsü ve Sonraki işlem paneli aynı fiil etiketlerini kullanır: İşe başla, Son kontrole al, Hazır olarak işaretle, İşleme geri al vb. Durum değerleri, yetkiler ve `run(moveJob)` akışı korunur.
+- **Portal:** Mobil adım numaraları tek satırda kalır; geçerli aşamanın tam adı alt satırda gösterilir. “Teslime hazır” etiketi kesilmez.
+- `components/route-guard.tsx` ve `app/(personel)/layout.tsx` değiştirilmedi. İş kuralları, API/veri modeli ve mevcut testler değiştirilmedi.
 
 - `npm.cmd run typecheck`: başarılı.
 - `npm.cmd test`: 23/23 başarılı.
 - `npm.cmd run build`: başarılı; 25 statik sayfa üretildi.
-- 3012 portunda yerel test sunucusu çalıştırıldı; `/` ve `/portal` HTTP 200 verdi.
-- Tarayıcı önizleme aracı “The browser access host is unavailable” döndürdüğü için oturum açılmış ekranlarda 1024/390 px görsel inceleme yapılamadı. Duyarlı düzen kod üzerinden kontrol edildi; cihaz üzerinde görsel doğrulama gerekir.
+- Önceki uygulamada 3012 portunda `/` ve `/portal` için HTTP 200 kontrolü yapılmıştı. Bu düzeltmelerde yerel test sunucusunun açıldığı doğrulandı; oturumlu tarayıcı kontrolü araç erişim hatası nedeniyle yapılamadı.
+- Denetim sonrası tür kontrolü, 23 test ve üretim derlemesi başarılıdır. Denetimdeki 1280 px pano ve 390 px portal ekran görüntüleri incelendi. Güncel ekranlar için tarayıcı önizleme aracı yine “The browser access host is unavailable” döndürdü; yeni düzenin tarayıcıda görsel doğrulaması yapılamadı. Duyarlı düzen kod üzerinden kontrol edildi; cihaz üzerinde görsel doğrulama gerekir.
 
 ## Bilinen sınırlar
 
