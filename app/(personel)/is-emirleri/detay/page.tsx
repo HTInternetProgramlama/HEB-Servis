@@ -5,102 +5,161 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useApp } from '@/components/store';
-import { Button, Card, Empty, Field, FormError, KV, Modal, PageHeader, Status, Tabs, useFormRunner } from '@/components/ui';
+import { Button, Empty, FactBox, FastTab, Field, FormError, KV, MenuButton, Modal, PageHeader, Status, useFormRunner } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { CarDrawing, Plate } from '@/components/vehicle-identity';
 import { PaymentForm } from '@/components/payment';
 import { ShareSheet } from '@/components/share-sheet';
-import { estimateMessage } from '@/lib/share';
+import { estimateMessage, serviceFormMessage } from '@/lib/share';
 import { DamageMap, DeliveryForm, EvaluationForm, FuelGauge, LineForm } from '@/components/forms';
 import {
   addInspection, allowedMoves, amountDue, amountPaid, approvedEstimate, balance, can, createEstimateDraft, decideEstimate, estimateTotals,
-  latestEstimate, lineTotals, moveJob, reassignJob, removeLine, sendEstimate, serviceName, setEstimateNote, staffName, technicians, toggleInspectionVisibility,
+  latestEstimate, lineTotals, moveJob, reassignJob, removeLine, roleLabel, sendEstimate, serviceName, setEstimateNote, staffName, technicians, toggleInspectionVisibility,
 } from '@/lib/commands';
 import { generateTechnicalDraft, type Suggestion } from '@/lib/advisor';
 import { fmtDate, fmtDateTime, km, money, qtyText } from '@/lib/format';
 import type { Channel, Estimate, InspectionResult, Job, JobStatus } from '@/lib/types';
 
-type Tab = 'overview' | 'inspection' | 'estimate' | 'payments' | 'history';
-const flow: JobStatus[] = ['Kabul edildi', 'İnceleniyor', 'Onay bekliyor', 'İşlemde', 'Son kontrol', 'Teslime hazır', 'Teslim edildi'];
-
 export default function Page() {
   return <Suspense><JobDetail /></Suspense>;
 }
+
+/** Belgelerin yazdırma bağlantısı: servis formu sayfası `belge` parametresiyle kabul formu / teklif / servis formu basar. */
+const docHref = (id: string, doc: 'kabul' | 'teklif' | 'servis') => detailHref('/servis-formu', id) + (doc === 'servis' ? '' : '&belge=' + doc);
 
 function JobDetail() {
   const id = useSearchParams().get('id');
   const { state, actor, run } = useApp();
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>('overview');
   const [modal, setModal] = useState<'' | 'payment' | 'deliver' | 'evaluate' | 'cancel' | 'move'>('');
+  const [share, setShare] = useState<'' | 'estimate' | 'form'>('');
   const [pendingMove, setPendingMove] = useState<JobStatus | null>(null);
   const job = state.jobs.find(j => j.id === id);
   if (!job) return <Empty icon="wrench" title="İş emri bulunamadı"><Link href="/is-emirleri">İş emirlerine dön</Link></Empty>;
-  if (actor.role === 'technician' && job.technicianId !== actor.userId) return <Empty icon="lock" title="Bu iş emri size atanmamış">Atanan işlerinizi atölye panosunda görebilirsiniz.</Empty>;
+  if (actor.role === 'technician' && job.technicianId !== actor.userId) return <Empty icon="lock" title="Bu iş emri size atanmamış">Atanan işlerinizi İş Emirleri listesinde görebilirsiniz.</Empty>;
   const vehicle = state.vehicles.find(v => v.id === job.vehicleId)!;
   const customer = state.customers.find(c => c.id === job.customerId)!;
   const moves = allowedMoves(job, actor);
   const latest = latestEstimate(job);
-  const step = job.status === 'Parça bekliyor' ? flow.indexOf('İşlemde') : flow.indexOf(job.status);
+  const sentEstimate = job.estimates.filter(e => e.status !== 'Taslak').at(-1);
   const showMoney = can(actor, 'payment.read');
+  const appt = state.appointments.find(a => a.id === job.appointmentId);
+  const others = state.jobs.filter(j => j.vehicleId === vehicle.id && j.id !== job.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const customerOpen = state.jobs.filter(j => j.customerId === customer.id && j.status !== 'İptal').reduce((s, j) => s + Math.max(0, balance(j)), 0);
+  const urgent = job.inspections.filter(i => i.result === 'Acil').length;
 
   function doMove(m: JobStatus) {
     if (m === 'İptal') { setModal('cancel'); return }
     if (m === 'Parça bekliyor') { setPendingMove(m); setModal('move'); return }
     run((s, a) => moveJob(s, a, job!.id, m), `${job!.no} → ${m}`, job!.no);
   }
+  const forward = moves.filter(m => m !== 'İptal');
 
   return <>
-    <PageHeader crumbs={[['İş emirleri', '/is-emirleri'], [job.no]]}
-      title={<span className="title-row"><span className="mono">{job.no}</span><Status value={job.status} /></span>}
-      sub={<>{serviceName(state, job.serviceId)} · kabul {fmtDateTime(job.createdAt)} · danışman {staffName(state, job.advisorId)}</>}
+    <PageHeader crumbs={[['İş Emirleri', '/is-emirleri'], [job.no]]}
+      title={<span className="title-row">İş Emri <span className="mono">{job.no}</span><Status value={job.status} /></span>}
+      sub={<>{serviceName(state, job.serviceId)} · {vehicle.brand} {vehicle.model} · {customer.name} · kabul {fmtDateTime(job.createdAt)}</>}
       actions={<>
-        {moves.filter(m => m !== 'İptal').map(m => <Button key={m} variant="primary" onClick={() => doMove(m)}>{m === 'Teslime hazır' && job.status === 'Onay bekliyor' ? 'İşlemsiz teslime hazırla' : m}<Icon name="arrow" size={14} /></Button>)}
+        {forward.map((m, i) => <Button key={m} variant={i === 0 ? 'primary' : 'default'} onClick={() => doMove(m)}>{m === 'Teslime hazır' && job.status === 'Onay bekliyor' ? 'İşlemsiz teslime hazırla' : m === 'Parça bekliyor' ? 'Parça bekliyor' : `${m} olarak işaretle`}</Button>)}
         {job.status === 'Teslime hazır' && can(actor, 'payment.write') && <Button variant="primary" icon="check" onClick={() => setModal('deliver')}>Teslim et</Button>}
-        {showMoney && balance(job) > 0 && <Button icon="wallet" onClick={() => setModal('payment')}>Tahsilat</Button>}
+        {showMoney && can(actor, 'payment.write') && balance(job) > 0 && <Button icon="wallet" onClick={() => setModal('payment')}>Tahsilat al</Button>}
+        {can(actor, 'estimate.write') && <MenuButton icon="send" label="Gönder" align="left">
+          <button type="button" role="menuitem" disabled={!latest || latest.status === 'Taslak'} onClick={() => setShare('estimate')}><Icon name="receipt" size={15} />Teklifi müşteriye ilet{latest?.status === 'Taslak' && <span className="dd-sub">önce onaya gönderin</span>}</button>
+          <button type="button" role="menuitem" onClick={() => setShare('form')}><Icon name="file" size={15} />Servis formunu ilet</button>
+        </MenuButton>}
+        <MenuButton icon="printer" label="Yazdır" align="left">
+          <Link href={docHref(job.id, 'kabul')} target="_blank" role="menuitem"><Icon name="clipboard" size={15} />Araç kabul formu</Link>
+          {sentEstimate || (latest && can(actor, 'estimate.write')) ? <Link href={docHref(job.id, 'teklif')} target="_blank" role="menuitem"><Icon name="receipt" size={15} />Teklif çıktısı<span className="dd-sub">v{(sentEstimate ?? latest)!.version}</span></Link>
+            : <button type="button" disabled><Icon name="receipt" size={15} />Teklif çıktısı<span className="dd-sub">teklif yok</span></button>}
+          <Link href={docHref(job.id, 'servis')} target="_blank" role="menuitem"><Icon name="file" size={15} />Servis / teslim formu</Link>
+        </MenuButton>
         {job.status === 'Teslim edildi' && can(actor, 'evaluation.write') && <Button icon="star" onClick={() => setModal('evaluate')}>Ziyareti değerlendir</Button>}
-        <Link className="btn" href={detailHref('/servis-formu', job.id)} target="_blank"><Icon name="printer" size={15} />Servis formu</Link>
-        {moves.includes('İptal') && <Button variant="ghost" onClick={() => setModal('cancel')}>İptal et</Button>}
+        {moves.includes('İptal') && <><span className="action-sep" /><Button variant="ghost" icon="x" onClick={() => setModal('cancel')}>İptal et</Button></>}
       </>} />
 
-    {job.status !== 'İptal' && <ol className="stepper">{flow.map((f, i) => <li key={f} className={i < step ? 'done' : i === step ? 'current' : ''}><span>{i < step ? <Icon name="check" size={12} /> : i + 1}</span>{f === 'İşlemde' && job.status === 'Parça bekliyor' ? 'Parça bekliyor' : f}</li>)}</ol>}
+    <div className="doc-layout">
+      <div className="doc-main">
+        <FastTab title="Genel" summary={`${staffName(state, job.technicianId)} · teslim sözü ${fmtDateTime(job.promisedAt)}`}>
+          <KV cols={3} items={[
+            ['İş emri no', <span key="n" className="mono">{job.no}</span>],
+            ['Hizmet türü', serviceName(state, job.serviceId)],
+            ['Durum', <Status key="s" value={job.status} />],
+            ['Müşteri', can(actor, 'customer.write') ? <Link key="c" href={detailHref('/musteriler/detay', customer.id)}>{customer.name}</Link> : customer.name],
+            ['Telefon', <a key="p" href={`tel:${customer.phone.replace(/\s/g, '')}`}>{customer.phone}</a>],
+            ['İletişim tercihi', customer.preference],
+            ['Araç', <Link key="v" href={detailHref('/araclar/detay', vehicle.id)}>{vehicle.brand} {vehicle.model} ({vehicle.year})</Link>],
+            ['Plaka', <Plate key="pl" value={vehicle.plate} size="sm" />],
+            ['Kabul km', km(job.intake.km)],
+            ['Kabul tarihi', fmtDateTime(job.createdAt)],
+            ['Randevu', appt ? `${appt.no} · ${fmtDate(appt.date)} ${appt.time}` : 'Randevusuz kabul'],
+            ['Servis danışmanı', staffName(state, job.advisorId)],
+            ['Teknisyen', can(actor, 'job.create') && !['Teslim edildi', 'İptal'].includes(job.status)
+              ? <select key="t" className="select sm" value={job.technicianId} onChange={e => run((s, a) => reassignJob(s, a, job.id, e.target.value), `${job.no} teknisyeni ${staffName(state, e.target.value)} olarak değiştirildi`, job.no)}>{technicians(state).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+              : staffName(state, job.technicianId)],
+            ['Teslim sözü', fmtDateTime(job.promisedAt)],
+            ['Teslim', job.deliveredAt ? fmtDateTime(job.deliveredAt) : '—'],
+          ]} />
+        </FastTab>
 
-    <div className="detail-layout">
-      <div className="detail-main">
-        <Tabs value={tab} onChange={setTab} items={[
-          ['overview', 'Kabul bilgileri'], ['inspection', 'Kontrol bulguları', job.inspections.length], ['estimate', 'Teklif', job.estimates.length],
-          ...(showMoney ? [['payments', 'Tahsilat', job.payments.length] as [Tab, string, number]] : []), ['history', 'Durum geçmişi', job.history.length],
-        ]} />
-        {tab === 'overview' && <Overview job={job} />}
-        {tab === 'inspection' && <Inspections job={job} />}
-        {tab === 'estimate' && <EstimatePanel job={job} />}
-        {tab === 'payments' && showMoney && <Payments job={job} onAdd={() => setModal('payment')} />}
-        {tab === 'history' && <Card flush><ol className="timeline">{[...job.history].reverse().map((h, i) => <li key={i}><Status value={h.status} /><div><strong>{h.by}</strong>{h.note && <p>{h.note}</p>}</div><time>{fmtDateTime(h.at)}</time></li>)}</ol></Card>}
+        <FastTab title="Şikâyet ve kabul" summary={`${km(job.intake.km)} · ${job.intake.damages.length} hasar kaydı`}>
+          <p className="quote">{job.intake.complaint}</p>
+          <div className="intake-view mt">
+            <DamageMap damages={job.intake.damages} readOnly />
+            <div className="stack">
+              <KV items={[['Kilometre', km(job.intake.km)], ['Yakıt', <FuelGauge key="f" value={job.intake.fuel} />], ['Kabulü yapan', `${job.intake.by} · ${fmtDateTime(job.intake.at)}`], ['Müşteri teyidi', job.intake.customerAck ? 'Birlikte kontrol edildi' : '—']]} />
+              <div><h3 className="mini-head">Mevcut hasarlar</h3>{job.intake.damages.length ? <ul className="plain-list">{job.intake.damages.map(d => <li key={d.area}><b>{d.area}</b> · {d.kind}{d.note && ` — ${d.note}`}</li>)}</ul> : <p className="muted small">Kabulde hasar kaydı yok.</p>}</div>
+              <div><h3 className="mini-head">Araçta bırakılanlar</h3><p className="small">{job.intake.belongings || '—'}</p></div>
+            </div>
+          </div>
+        </FastTab>
+
+        <FastTab title="Muayene" summary={`${job.inspections.length} bulgu${urgent ? ` · ${urgent} acil` : ''}`}>
+          <Inspections job={job} />
+        </FastTab>
+
+        <FastTab title="Teklif ve kalemler" summary={latest ? `v${latest.version} · ${latest.status} · ${money(estimateTotals(latest).total)}` : 'Teklif hazırlanmadı'}>
+          <EstimatePanel job={job} onShare={() => setShare('estimate')} />
+        </FastTab>
+
+        {showMoney && <FastTab title="Tahsilat" summary={`${job.payments.length} kayıt · kalan ${money(balance(job))}`} flush
+          actions={can(actor, 'payment.write') && balance(job) > 0 && <Button size="sm" icon="plus" onClick={() => setModal('payment')}>Tahsilat al</Button>}>
+          <Payments job={job} />
+        </FastTab>}
+
+        <FastTab title="Geçmiş" open={false} summary={`${job.history.length} durum değişikliği`} flush>
+          <ol className="timeline">{[...job.history].reverse().map((h, i) => <li key={i}><time>{fmtDateTime(h.at)}</time><div><Status value={h.status} /> <span className="small">{h.by}</span>{h.note && <p>{h.note}</p>}</div><span /></li>)}</ol>
+          {can(actor, 'audit.read') && <AuditRows refNo={job.no} />}
+        </FastTab>
       </div>
 
-      <aside className="detail-side">
-        <Card title="Araç">
+      <aside className="doc-side" aria-label="Bilgi kutusu">
+        <FactBox title="Araç" actions={<Link href={detailHref('/araclar/detay', vehicle.id)} className="small">Araç kartı</Link>}>
           <CarDrawing vehicle={vehicle} />
-          <div className="row-between mt"><Plate value={vehicle.plate} /><Link href={detailHref('/araclar/detay', vehicle.id)} className="btn sm link">Araç dosyası</Link></div>
-          <KV items={[['Model', `${vehicle.brand} ${vehicle.model} · ${vehicle.year}`], ['Kabul km', km(job.intake.km)], ['Yakıt / vites', `${vehicle.fuel} · ${vehicle.transmission}`], ['Şasi', <span className="mono small" key="v">{vehicle.vin || '—'}</span>]]} />
-        </Card>
-        <Card title="Müşteri">
-          <KV cols={1} items={[['Ad / unvan', can(actor, 'customer.write') ? <Link href={detailHref('/musteriler/detay', customer.id)}>{customer.name}</Link> : customer.name], ['Telefon', <a key="p" href={`tel:${customer.phone.replace(/\s/g, '')}`}>{customer.phone}</a>], ['İletişim tercihi', customer.preference]]} />
-          {can(actor, 'note.read') && state.notes.filter(n => n.customerId === customer.id).slice(-2).map(n => <div key={n.id} className="inner-note"><Icon name="lock" size={12} /><div><b>{n.category}</b> {n.text}</div></div>)}
-        </Card>
-        <Card title="Sorumlular">
-          <KV cols={1} items={[['Servis danışmanı', staffName(state, job.advisorId)], ['Teknisyen', can(actor, 'job.create') && !['Teslim edildi', 'İptal'].includes(job.status)
-            ? <select key="t" className="select sm" value={job.technicianId} onChange={e => run((s, a) => reassignJob(s, a, job.id, e.target.value), `${job.no} teknisyeni ${staffName(state, e.target.value)} olarak değiştirildi`, job.no)}>{technicians(state).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
-            : staffName(state, job.technicianId)], ['Tahmini teslim', fmtDateTime(job.promisedAt)], ...(job.deliveredAt ? [['Teslim', fmtDateTime(job.deliveredAt)] as [string, string]] : [])]} />
-        </Card>
-        {showMoney && <Card title="Mali özet">
-          <dl className="sum">
+          <dl className="fact-list">
+            <div><dt>Plaka</dt><dd><Plate value={vehicle.plate} size="sm" /></dd></div>
+            <div><dt>Model</dt><dd>{vehicle.brand} {vehicle.model} · {vehicle.year}</dd></div>
+            <div><dt>Yakıt / vites</dt><dd>{vehicle.fuel} · {vehicle.transmission}</dd></div>
+            <div><dt>Şasi no</dt><dd className="mono small">{vehicle.vin || '—'}</dd></div>
+          </dl>
+        </FactBox>
+        {showMoney && <FactBox title="Bakiye">
+          <dl className="fact-list">
             <div><dt>Onaylı iş tutarı</dt><dd>{money(amountDue(job))}</dd></div>
             <div><dt>Tahsil edilen</dt><dd>{money(amountPaid(job))}</dd></div>
-            <div className="total"><dt>Kalan bakiye</dt><dd className={balance(job) > 0 ? 'text-bad' : ''}>{money(balance(job))}</dd></div>
+            <div className="total"><dt>Kalan</dt><dd className={balance(job) > 0 ? 'text-bad' : ''}>{money(balance(job))}</dd></div>
+            <div><dt>Müşteri toplam açık</dt><dd>{money(customerOpen)}</dd></div>
           </dl>
-          {latest && latest.status === 'Gönderildi' && <p className="small muted mt">v{latest.version} teklifi ({money(estimateTotals(latest).total)}) müşteri kararını bekliyor.</p>}
-        </Card>}
+          {latest?.status === 'Gönderildi' && <p className="small muted mt">v{latest.version} teklifi ({money(estimateTotals(latest).total)}) müşteri kararını bekliyor.</p>}
+        </FactBox>}
+        <FactBox title="Son servisler">
+          {others.length ? <ul className="fact-links">{others.slice(0, 3).map(j => <li key={j.id}>
+            <Link href={detailHref('/is-emirleri/detay', j.id)} className="mono">{j.no}</Link><span className="small muted">{fmtDate(j.createdAt)}</span>
+            <small>{serviceName(state, j.serviceId)} · {km(j.intake.km)}</small>
+          </li>)}</ul> : <p className="small muted">Bu araç için önceki servis kaydı yok.</p>}
+        </FactBox>
+        {can(actor, 'note.read') && state.notes.some(n => n.customerId === customer.id) && <FactBox title="Müşteri iç notları">
+          {state.notes.filter(n => n.customerId === customer.id).slice(-2).map(n => <div key={n.id} className="inner-note"><Icon name="lock" size={12} /><div><b>{n.category}</b> {n.text}</div></div>)}
+        </FactBox>}
       </aside>
     </div>
 
@@ -109,7 +168,24 @@ function JobDetail() {
     {modal === 'evaluate' && <EvaluationForm open job={job} onClose={() => setModal('')} />}
     {(modal === 'cancel' || modal === 'move') && <ReasonModal title={modal === 'cancel' ? 'İş emrini iptal et' : 'Parça bekliyor'} label={modal === 'cancel' ? 'İptal gerekçesi' : 'Beklenen parça / tedarikçi'} required={modal === 'cancel'}
       onClose={() => setModal('')} onSubmit={note => run((s, a) => moveJob(s, a, job.id, modal === 'cancel' ? 'İptal' : pendingMove!, note), `${job.no} → ${modal === 'cancel' ? 'İptal' : pendingMove}`, job.no)} />}
+    {share === 'estimate' && latest && latest.status !== 'Taslak' && <Modal open title={`Teklif v${latest.version} müşteriye iletilsin`} sub={`Portal bağlantısı ile onaylanabilir · ${customer.preference} tercih ediyor`} onClose={() => setShare('')} width={760}>
+      <p className="banner"><Icon name="mail" size={15} />Teklif portalda müşterinin onayına açıktır. Bildirim otomatik gitmez; aşağıdan bir kanal seçin.</p>
+      <ShareSheet name={customer.name} phone={customer.phone} email={customer.email || undefined} subject={`${job.no} servis teklifi`} text={estimateMessage(state, job, latest, location.origin)} />
+    </Modal>}
+    {share === 'form' && <Modal open title="Servis formunu müşteriye ilet" sub={`${customer.name} · ${customer.preference} tercih ediyor`} onClose={() => setShare('')} width={760}>
+      <ShareSheet name={customer.name} phone={customer.phone} email={customer.email || undefined} subject={`${job.no} servis formu`} text={serviceFormMessage(state, job, location.origin)} />
+    </Modal>}
   </>;
+}
+
+function AuditRows({ refNo }: { refNo: string }) {
+  const { state } = useApp();
+  const rows = state.audit.filter(a => a.ref === refNo);
+  if (!rows.length) return null;
+  return <div className="subsection"><h3 className="subsection-title">İşlem günlüğü</h3>
+    <div className="table-wrap"><table className="table dense"><thead><tr><th>Zaman</th><th>Kullanıcı</th><th className="hide-sm">Rol</th><th>İşlem</th></tr></thead>
+      <tbody>{rows.map(a => <tr key={a.id}><td className="nowrap small">{fmtDateTime(a.at)}</td><td>{a.by}</td><td className="hide-sm small">{roleLabel[a.role]}</td><td>{a.action}</td></tr>)}</tbody></table></div>
+  </div>;
 }
 
 function ReasonModal({ title, label, required, onClose, onSubmit }: { title: string; label: string; required: boolean; onClose: () => void; onSubmit: (note: string) => Promise<string | null> }) {
@@ -123,30 +199,13 @@ function ReasonModal({ title, label, required, onClose, onSubmit }: { title: str
   </Modal>;
 }
 
-function Overview({ job }: { job: Job }) {
-  const { state } = useApp();
-  const appt = state.appointments.find(a => a.id === job.appointmentId);
-  return <div className="stack">
-    <Card title="Müşteri şikâyeti / talebi"><p className="quote">{job.intake.complaint}</p></Card>
-    <Card title="Kabul kontrolü" sub={`${job.intake.by} · ${fmtDateTime(job.intake.at)}`}>
-      <div className="intake-view">
-        <DamageMap damages={job.intake.damages} readOnly />
-        <div className="stack">
-          <KV items={[['Kilometre', km(job.intake.km)], ['Yakıt', <FuelGauge key="f" value={job.intake.fuel} />], ['Randevu', appt ? `${appt.no} · ${fmtDate(appt.date)} ${appt.time}` : 'Randevusuz kabul'], ['Müşteri teyidi', job.intake.customerAck ? 'Birlikte kontrol edildi' : '—']]} />
-          <div><h3 className="mini-head">Mevcut hasarlar</h3>{job.intake.damages.length ? <ul className="plain-list">{job.intake.damages.map(d => <li key={d.area}><b>{d.area}</b> · {d.kind}{d.note && ` — ${d.note}`}</li>)}</ul> : <p className="muted small">Kabulde hasar kaydı yok.</p>}</div>
-          <div><h3 className="mini-head">Araçta bırakılanlar</h3><p className="small">{job.intake.belongings || '—'}</p></div>
-        </div>
-      </div>
-    </Card>
-  </div>;
-}
-
 function Inspections({ job }: { job: Job }) {
   const { state, actor, run } = useApp();
   const { error, busy, submit } = useFormRunner();
   const [draft, setDraft] = useState<(ReturnType<typeof generateTechnicalDraft> & { causes?: string[]; ai?: boolean; notice?: string }) | null>(null);
   const [thinking, setThinking] = useState(false);
   const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [adding, setAdding] = useState(false);
   const writable = can(actor, 'inspection.write') && !['Teslim edildi', 'İptal'].includes(job.status);
   const vehicle = state.vehicles.find(v => v.id === job.vehicleId)!;
 
@@ -170,8 +229,11 @@ function Inspections({ job }: { job: Job }) {
   }
 
   return <div className="stack">
-    <Card title="Kontrol bulguları" sub="Kabuldeki mevcut hasarlardan ayrı tutulur. Müşteriye açık işaretli bulgular portalda ve servis formunda görünür." flush>
-      {job.inspections.length ? <table className="table">
+    <div className="subsection">
+      <div className="subsection-head"><h3 className="subsection-title">Kontrol bulguları</h3>
+        {writable && <div className="btn-row"><Button size="sm" icon="plus" onClick={() => setAdding(a => !a)}>{adding ? 'Formu kapat' : 'Bulgu ekle'}</Button><Button size="sm" icon="sparkle" disabled={thinking} onClick={makeDraft}>{draft ? 'Ön değerlendirmeyi yenile' : 'Ön değerlendirme öner'}</Button></div>}</div>
+      <p className="small muted">Kabuldeki mevcut hasarlardan ayrı tutulur. Müşteriye açık bulgular portalda ve servis formunda görünür.</p>
+      {job.inspections.length ? <div className="table-wrap"><table className="table dense">
         <thead><tr><th>Kontrol maddesi</th><th>Sonuç</th><th className="hide-sm">Açıklama</th><th className="hide-sm">Kaydeden</th><th>Müşteri</th></tr></thead>
         <tbody>{job.inspections.map(i => <tr key={i.id}>
           <td><strong>{i.item}</strong><InspectionPhoto id={i.id} hasPhoto={!!i.photoPath} writable={writable} />{i.source === 'Ön değerlendirme' && <small className="cell-sub">Ön değerlendirmeden</small>}</td>
@@ -180,10 +242,11 @@ function Inspections({ job }: { job: Job }) {
           <td className="hide-sm small">{i.by}<small className="cell-sub">{fmtDateTime(i.at)}</small></td>
           <td>{can(actor, 'estimate.write') ? <button className={'vis-toggle ' + (i.customerVisible ? 'on' : '')} onClick={() => run((s, a) => toggleInspectionVisibility(s, a, job.id, i.id), i.customerVisible ? 'Bulgu müşteriden gizlendi' : 'Bulgu müşteriye açıldı', job.no)} aria-label={i.customerVisible ? 'Müşteriye açık' : 'Yalnız personel'}><Icon name={i.customerVisible ? 'eye' : 'eyeoff'} size={14} />{i.customerVisible ? 'Açık' : 'Gizli'}</button> : <span className="small muted">{i.customerVisible ? 'Açık' : 'Gizli'}</span>}</td>
         </tr>)}</tbody>
-      </table> : <Empty icon="clipboard" title="Henüz bulgu kaydedilmedi" />}
-    </Card>
+      </table></div> : <p className="muted small empty-line">Henüz bulgu kaydedilmedi.</p>}
+    </div>
 
-    {writable && <Card title="Bulgu ekle">
+    {writable && adding && <div className="subsection boxed">
+      <h3 className="subsection-title">Yeni bulgu</h3>
       <form className="form" onSubmit={e => {
         e.preventDefault(); const f = new FormData(e.currentTarget); const form = e.currentTarget;
         submit(() => run((s, a) => addInspection(s, a, job.id, { item: String(f.get('item')), result: String(f.get('result')) as InspectionResult, note: String(f.get('note')), customerVisible: f.get('visible') === 'on' }), 'Kontrol bulgusu eklendi', job.no), () => form.reset());
@@ -197,11 +260,11 @@ function Inspections({ job }: { job: Job }) {
         <datalist id="check-items">{['Ön fren balata kalınlığı', 'Arka fren balata kalınlığı', 'Fren diski yüzeyi', 'Fren hidroliği seviyesi ve nem oranı', 'Lastik diş derinliği', 'Akü sağlık testi', 'Motor yağı seviyesi', 'Soğutma sıvısı seviyesi', 'Ön düzen boşlukları', 'Amortisörler', 'Silecekler', 'Aydınlatma', 'Egzoz sistemi', 'OBD arıza kodları'].map(x => <option key={x} value={x} />)}</datalist>
         <div className="row-between"><label className="check"><input type="checkbox" name="visible" defaultChecked /> Müşteriye açık</label><button className="btn primary" disabled={busy}>Bulguyu kaydet</button></div>
       </form>
-    </Card>}
+    </div>}
 
-    {writable && <Card title={<span className="title-row">Teknik ön değerlendirme<span className="tag ai">Yapay zekâ</span></span>} sub="Araç bilgisi, kilometre ve şikâyetten muayene kontrol listesi önerir. Kesin teşhis değildir; seçtikleriniz onayınızla bulgu listesine eklenir."
-      actions={<Button icon="sparkle" variant={draft ? 'default' : 'primary'} disabled={thinking} onClick={makeDraft}>{draft ? 'Yeniden oluştur' : 'Öneri oluştur'}</Button>}>
-      <p className="small muted"><Icon name="lock" size={12} /> Modele yalnız marka/model, yıl, kabul km, yakıt türü, şikâyet metni ve aracın önceki bulguları gönderilir. Müşteri adı, telefon, plaka ve iç notlar gönderilmez.</p>
+    {writable && (thinking || draft) && <div className="subsection boxed">
+      <h3 className="subsection-title">Teknik ön değerlendirme <span className="tag ai">Yapay zekâ</span></h3>
+      <p className="small muted"><Icon name="lock" size={12} /> Modele yalnız marka/model, yıl, kabul km, yakıt türü, şikâyet metni ve aracın önceki bulguları gönderilir. Müşteri adı, telefon, plaka ve iç notlar gönderilmez. Kesin teşhis değildir.</p>
       {thinking && <div className="ai-panel"><div className="ai-loading"><i />Şikâyet ve araç geçmişi değerlendiriliyor…</div></div>}
       {draft && !thinking && <div className="ai-panel">
         <div className="ai-head"><strong><Icon name={draft.ai ? 'sparkle' : 'bulb'} size={16} />{draft.ai ? 'Yapay zekâ önerisi' : 'Kural tabanlı öneri'}</strong><span className="ai-meta">{draft.engine}</span></div>
@@ -211,14 +274,12 @@ function Inspections({ job }: { job: Job }) {
         <ul className="draft-list">{draft.suggestions.map((sg, i) => <li key={i}><label className="check"><input type="checkbox" checked={picked.has(i)} onChange={() => setPicked(p => { const n = new Set(p); if (n.has(i)) n.delete(i); else n.add(i); return n })} /><span><strong>{sg.item}</strong><small>{sg.reason}</small></span></label><Status value={sg.priority} /></li>)}</ul>
         <div className="row-between wrap"><small className="muted">Öneriler teknisyen muayenesiyle doğrulanmalıdır.</small><Button variant="primary" disabled={!picked.size} onClick={() => addPicked(draft.suggestions)}>Seçilenleri bulgu olarak ekle ({picked.size})</Button></div>
       </div>}
-    </Card>}
+    </div>}
   </div>;
 }
 
-function EstimatePanel({ job }: { job: Job }) {
-  const { state, actor, run } = useApp();
-  const [share, setShare] = useState(false);
-  const customer = state.customers.find(c => c.id === job.customerId)!;
+function EstimatePanel({ job, onShare }: { job: Job; onShare: () => void }) {
+  const { actor, run } = useApp();
   const [version, setVersion] = useState<number | null>(null);
   const [lineModal, setLineModal] = useState<null | { lineId?: string }>(null);
   const [decide, setDecide] = useState<null | 'Onaylandı' | 'Reddedildi'>(null);
@@ -227,33 +288,37 @@ function EstimatePanel({ job }: { job: Job }) {
   const writable = can(actor, 'estimate.write');
   const canStart = writable && !['Teslime hazır', 'Teslim edildi', 'İptal'].includes(job.status) && (!latest || latest.status !== 'Taslak');
 
-  if (!e) return <Card><Empty icon="receipt" title="Henüz teklif hazırlanmadı">{writable ? 'Hizmet türüne göre önerilen kalemlerle taslak oluşturulur.' : 'Teklifi servis danışmanı hazırlar.'}</Empty>{canStart && <div className="center"><Button variant="primary" icon="plus" onClick={() => run((s, a) => createEstimateDraft(s, a, job.id), 'Teklif taslağı oluşturuldu', job.no)}>Teklif taslağı oluştur</Button></div>}</Card>;
+  if (!e) return <div className="empty-line">
+    <p className="muted small">Henüz teklif hazırlanmadı. {writable ? 'Hizmet türüne göre önerilen kalemlerle taslak oluşturulur.' : 'Teklifi servis danışmanı hazırlar.'}</p>
+    {canStart && <Button variant="primary" icon="plus" onClick={() => run((s, a) => createEstimateDraft(s, a, job.id), 'Teklif taslağı oluşturuldu', job.no)}>Teklif taslağı oluştur</Button>}
+  </div>;
   const t = estimateTotals(e);
   const editable = writable && e.status === 'Taslak' && e.id === latest?.id;
 
   return <div className="stack">
-    <div className="toolbar tight">
-      <div className="seg small">{job.estimates.map(x => <button key={x.id} className={x.id === e.id ? 'active' : ''} onClick={() => setVersion(x.version)}>v{x.version} <Status value={x.status} /></button>)}</div>
-      <div className="toolbar-end">
-        {canStart && <Button icon="plus" onClick={() => { run((s, a) => createEstimateDraft(s, a, job.id), `Teklif v${(latest?.version ?? 0) + 1} taslağı oluşturuldu`, job.no); setVersion(null) }}>{latest ? 'Yeni sürüm (revizyon)' : 'Taslak oluştur'}</Button>}
+    <div className="subsection-head">
+      <div className="seg small" role="group" aria-label="Teklif sürümü">{job.estimates.map(x => <button key={x.id} className={x.id === e.id ? 'active' : ''} onClick={() => setVersion(x.version)}>v{x.version} · {x.status}</button>)}</div>
+      <div className="btn-row">
+        {editable && <Button size="sm" icon="plus" onClick={() => setLineModal({})}>Kalem ekle</Button>}
+        {canStart && <Button size="sm" icon="plus" onClick={() => { run((s, a) => createEstimateDraft(s, a, job.id), `Teklif v${(latest?.version ?? 0) + 1} taslağı oluşturuldu`, job.no); setVersion(null) }}>{latest ? 'Yeni sürüm (revizyon)' : 'Taslak oluştur'}</Button>}
       </div>
     </div>
+    <p className="small muted">{e.createdBy} · {fmtDateTime(e.createdAt)}{e.sentAt && <> · gönderim {fmtDateTime(e.sentAt)}</>}</p>
     {e.id !== latest?.id && <div className="banner"><Icon name="history" size={15} />Eski sürüm görüntüleniyor. Bu sürüme verilen karar güncel sürüm için geçerli değildir.</div>}
-    <Card title={`Teklif v${e.version}`} sub={<>{e.createdBy} · {fmtDateTime(e.createdAt)}{e.sentAt && <> · gönderim {fmtDateTime(e.sentAt)}</>}</>} flush
-      actions={editable && <Button size="sm" icon="plus" onClick={() => setLineModal({})}>Kalem ekle</Button>}>
-      {e.lines.length ? <div className="table-wrap"><table className="table lines">
-        <thead><tr><th>Tür</th><th>Kod</th><th>Açıklama</th><th className="num">Miktar</th><th className="num">Birim fiyat</th><th className="num">İnd.</th><th className="num">Tutar</th>{editable && <th />}</tr></thead>
+    <div className="lines-box">
+      {e.lines.length ? <div className="table-wrap"><table className="table dense lines">
+        <thead><tr><th>Tür</th><th>Kod</th><th>Açıklama</th><th className="num">Miktar</th><th className="num hide-sm">Birim fiyat</th><th className="num hide-sm">İnd.</th><th className="num">Tutar</th>{editable && <th />}</tr></thead>
         <tbody>{e.lines.map(l => <tr key={l.id}>
           <td><span className={'tag ' + (l.kind === 'Parça' ? 'blue' : 'violet')}>{l.kind}</span></td>
           <td className="mono small">{l.code || '—'}</td><td>{l.name}</td>
-          <td className="num">{qtyText(l.qty)} {l.unit}</td><td className="num">{money(l.unitPrice)}</td>
-          <td className="num">{l.discountPct ? `%${l.discountPct}` : '—'}</td><td className="num strong">{money(lineTotals(l).net)}</td>
+          <td className="num">{qtyText(l.qty)} {l.unit}</td><td className="num hide-sm">{money(l.unitPrice)}</td>
+          <td className="num hide-sm">{l.discountPct ? `%${l.discountPct}` : '—'}</td><td className="num strong">{money(lineTotals(l).net)}</td>
           {editable && <td className="actions"><button className="icon-btn" aria-label="Düzenle" onClick={() => setLineModal({ lineId: l.id })}><Icon name="edit" size={14} /></button><button className="icon-btn" aria-label="Sil" onClick={() => run((s, a) => removeLine(s, a, job.id, l.id), `"${l.name}" tekliften çıkarıldı`, job.no)}><Icon name="trash" size={14} /></button></td>}
         </tr>)}</tbody>
-      </table></div> : <Empty icon="receipt" title="Kalem yok">Parça ve işçilik kalemlerini ekleyin.</Empty>}
+      </table></div> : <p className="muted small empty-line">Kalem yok. Parça ve işçilik kalemlerini ekleyin.</p>}
       <div className="totals">
         <div className="totals-note">
-          {editable ? <textarea defaultValue={e.note} rows={3} maxLength={800} placeholder="Müşteriye açıklama (ör. değişim gerekçesi, garanti süresi)" onBlur={ev => ev.target.value !== e.note && run((s, a) => setEstimateNote(s, a, job.id, ev.target.value), 'Teklif açıklaması güncellendi', job.no)} />
+          {editable ? <textarea defaultValue={e.note} rows={3} maxLength={800} placeholder="Müşteriye açıklama (ör. değişim gerekçesi, garanti süresi)" aria-label="Teklif açıklaması" onBlur={ev => ev.target.value !== e.note && run((s, a) => setEstimateNote(s, a, job.id, ev.target.value), 'Teklif açıklaması güncellendi', job.no)} />
             : e.note && <p className="quote">{e.note}</p>}
         </div>
         <dl className="sum">
@@ -265,18 +330,14 @@ function EstimatePanel({ job }: { job: Job }) {
           <div className="total"><dt>Genel toplam</dt><dd>{money(t.total)}</dd></div>
         </dl>
       </div>
-    </Card>
+    </div>
     {e.decision && <div className={'banner ' + (e.decision.result === 'Onaylandı' ? 'ok' : 'bad')}><Icon name={e.decision.result === 'Onaylandı' ? 'check' : 'x'} size={15} /><div><strong>{e.decision.result}</strong> · {e.decision.channel} · {e.decision.by} · {fmtDateTime(e.decision.at)}{e.decision.note && <p>{e.decision.note}</p>}</div></div>}
     {editable && <div className="action-bar"><span className="muted small">Gönderildikten sonra bu sürüm değiştirilemez; değişiklik yeni sürüm gerektirir ve önceki onay geçerliliğini yitirir.</span>
-      <Button variant="primary" icon="mail" onClick={() => run((s, a) => sendEstimate(s, a, job.id), `Teklif v${e.version} müşteri onayına gönderildi`, job.no).then(err => { if (!err) setShare(true) })}>Müşteri onayına gönder</Button></div>}
+      <Button variant="primary" icon="send" onClick={() => run((s, a) => sendEstimate(s, a, job.id), `Teklif v${e.version} müşteri onayına gönderildi`, job.no).then(err => { if (!err) onShare() })}>Müşteri onayına gönder</Button></div>}
     {writable && e.status === 'Gönderildi' && e.id === latest?.id && <div className="action-bar"><span className="muted small">Müşteri portaldan karar verebilir. Telefon veya şubede alınan kararı buradan kaydedin.</span>
-      <div className="btn-row"><Button icon="mail" onClick={() => setShare(true)}>Müşteriye ilet</Button><Button onClick={() => setDecide('Reddedildi')}>Ret kaydet</Button><Button variant="primary" icon="check" onClick={() => setDecide('Onaylandı')}>Onay kaydet</Button></div></div>}
+      <div className="btn-row"><Button icon="send" onClick={onShare}>Müşteriye ilet</Button><Button onClick={() => setDecide('Reddedildi')}>Ret kaydet</Button><Button variant="primary" icon="check" onClick={() => setDecide('Onaylandı')}>Onay kaydet</Button></div></div>}
     {lineModal && <LineForm open job={job} line={e.lines.find(l => l.id === lineModal.lineId)} onClose={() => setLineModal(null)} />}
     {decide && <DecisionModal job={job} estimate={e} result={decide} onClose={() => setDecide(null)} />}
-    {share && latest && <Modal open title={`Teklif v${latest.version} müşteriye iletilsin`} sub={`Portal bağlantısı ile onaylanabilir · ${customer.preference} tercih ediyor`} onClose={() => setShare(false)} width={760}>
-      <div className="sent-banner"><span className="sent-plane"><Icon name="mail" size={18} /></span><div><strong>Teklif portala gönderildi</strong><small>Müşteri bildirimi otomatik gitmez; aşağıdan istediğiniz kanalla iletin.</small></div></div>
-      <ShareSheet name={customer.name} phone={customer.phone} email={customer.email || undefined} subject={`${job.no} servis teklifi`} text={estimateMessage(state, job, latest, location.origin)} />
-    </Modal>}
   </div>;
 }
 
@@ -293,14 +354,14 @@ function DecisionModal({ job, estimate, result, onClose }: { job: Job; estimate:
   </Modal>;
 }
 
-function Payments({ job, onAdd }: { job: Job; onAdd: () => void }) {
-  const { actor } = useApp();
+function Payments({ job }: { job: Job }) {
   const approved = approvedEstimate(job);
-  return <Card title="Tahsilatlar" sub={approved ? `Onaylı teklif v${approved.version} üzerinden` : 'Onaylı teklif yok; tahsilat girilemez'} flush actions={can(actor, 'payment.write') && balance(job) > 0 && <Button size="sm" icon="plus" onClick={onAdd}>Tahsilat ekle</Button>}>
-    {job.payments.length ? <table className="table">
+  return <>
+    <p className="small muted pad-x">{approved ? `Onaylı teklif v${approved.version} üzerinden · onaylı tutar ${money(amountDue(job))}` : 'Onaylı teklif yok; tahsilat girilemez.'}</p>
+    {job.payments.length ? <div className="table-wrap"><table className="table dense">
       <thead><tr><th>Tarih</th><th>Yöntem</th><th className="hide-sm">Açıklama</th><th className="hide-sm">Kaydeden</th><th className="num">Tutar</th></tr></thead>
-      <tbody>{job.payments.map(p => <tr key={p.id}><td>{fmtDateTime(p.at)}</td><td>{p.method}</td><td className="hide-sm">{p.note || '—'}</td><td className="hide-sm">{p.by}</td><td className="num strong">{money(p.amount)}</td></tr>)}</tbody>
+      <tbody>{job.payments.map(p => <tr key={p.id}><td className="nowrap">{fmtDateTime(p.at)}</td><td>{p.method}</td><td className="hide-sm">{p.note || '—'}</td><td className="hide-sm">{p.by}</td><td className="num strong">{money(p.amount)}</td></tr>)}</tbody>
       <tfoot><tr><td colSpan={4} className="hide-sm">Kalan bakiye</td><td className="num strong">{money(balance(job))}</td></tr></tfoot>
-    </table> : <Empty icon="wallet" title="Tahsilat kaydı yok" />}
-  </Card>;
+    </table></div> : <p className="muted small empty-line pad-x">Tahsilat kaydı yok.</p>}
+  </>;
 }

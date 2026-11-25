@@ -1,6 +1,6 @@
 'use client';
 import { detailHref } from '@/lib/routes';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/components/store';
@@ -15,6 +15,7 @@ export default function CustomersPage() {
   const [q, setQ] = useState('');
   const [kind, setKind] = useState('');
   const [form, setForm] = useState(false);
+  useEffect(() => { if (new URLSearchParams(location.search).get('yeni') === '1') setForm(true) }, []);
   const term = fold(q.trim()), digits = q.replace(/\D/g, '');
   const rows = state.customers.filter(c => (!kind || c.kind === kind) && (!term || fold(c.name + ' ' + c.no + ' ' + c.email).includes(term) || (digits.length >= 3 && c.phone.replace(/\D/g, '').includes(digits))))
     .map(c => {

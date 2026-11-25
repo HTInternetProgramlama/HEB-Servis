@@ -5,23 +5,54 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useStore } from './store';
 import { Icon, type IconName } from './icons';
-import { Avatar } from './ui';
+import { Avatar, MenuButton } from './ui';
 import { Plate } from './vehicle-identity';
-import { DriftLoader } from './car-art';
 import { can, dueReminders, roleLabel, type Permission } from '@/lib/rules';
 import { fmtLongDate, fold, normalizePlate, today } from '@/lib/format';
+import type { Actor } from '@/lib/types';
 
-interface NavItem { href: string; label: string; icon: IconName; perm?: Permission; badge?: number; tech?: boolean; hot?: boolean }
+interface SubItem { href: string; label: string; icon: IconName; perm?: Permission; badge?: number }
+interface Section { key: string; label: string; href: string; icon: IconName; perm?: Permission; badge?: number; match: string[]; sub?: SubItem[]; hidden?: boolean }
 
+/** Yazı logosu: lacivert çubukta beyaz, belgede koyu. */
 export function Logo({ light }: { light?: boolean }) {
   return <span className={'logo ' + (light ? 'light' : '')}>
-    <svg className="logo-mark" viewBox="0 0 48 48" width="32" height="32" aria-hidden="true"><rect width="48" height="48" rx="12" fill="var(--accent, #d9480f)" /><path d="M11 12h7v11h12V12h7v24h-7v-7H18v7h-7Z" fill="#fff" /><path d="M23 11h2v6h-2zm0 22h2v5h-2z" fill="#fff" opacity=".65" /></svg>
-    <span className="logo-text"><b>HEB</b> Servis</span>
+    <span className="logo-mark" aria-hidden="true">HEB</span>
+    <span className="logo-text">Servis</span>
   </span>;
 }
 
 export function Loading() {
-  return <div className="boot"><Logo /><DriftLoader label="Atölye hazırlanıyor…" /></div>;
+  return <div className="boot"><Logo /><div className="boot-bar" /><span className="small">Yükleniyor…</span></div>;
+}
+
+const show = (actor: Actor, perm?: Permission) => !perm || can(actor, perm);
+
+/** Ana menü (en fazla 7 öğe) ve her bölümün alt sekmeleri. Ayrı menüden kaldırılan sayfalar burada alt sekme olarak yaşar. */
+function sections(counts: { requests: number; approvals: number; reminders: number }): Section[] {
+  return [
+    { key: 'home', label: 'Ana Sayfa', href: '/', icon: 'dashboard', match: [] },
+    { key: 'appt', label: 'Randevular', href: '/randevular', icon: 'calendar', perm: 'appointment.manage', badge: counts.requests, match: ['/randevular'] },
+    { key: 'jobs', label: 'İş Emirleri', href: '/is-emirleri', icon: 'wrench', match: ['/is-emirleri', '/teklifler', '/tahsilat', '/atolye'], sub: [
+      { href: '/is-emirleri', label: 'İş emri listesi', icon: 'wrench' },
+      { href: '/teklifler', label: 'Teklif onayları', icon: 'receipt', perm: 'estimate.write', badge: counts.approvals },
+      { href: '/tahsilat', label: 'Tahsilat', icon: 'wallet', perm: 'payment.read' },
+    ] },
+    { key: 'cust', label: 'Müşteriler', href: '/musteriler', icon: 'users', perm: 'customer.write', match: ['/musteriler'] },
+    { key: 'veh', label: 'Araçlar', href: '/araclar', icon: 'car', match: ['/araclar', '/hatirlatmalar'], sub: [
+      { href: '/araclar', label: 'Araç listesi', icon: 'car' },
+      { href: '/hatirlatmalar', label: 'Bakım hatırlatmaları', icon: 'bell', perm: 'reminder.write', badge: counts.reminders },
+    ] },
+    { key: 'stock', label: 'Stok', href: '/katalog', icon: 'package', perm: 'estimate.write', match: ['/katalog'] },
+    { key: 'rep', label: 'Raporlar', href: '/raporlar', icon: 'chart', perm: 'reports.read', match: ['/raporlar', '/yapay-zeka'], sub: [
+      { href: '/raporlar', label: 'Rapor belgeleri', icon: 'chart', perm: 'reports.read' },
+      { href: '/yapay-zeka', label: 'Yapay zekâ asistanı', icon: 'sparkle', perm: 'inspection.write' },
+    ] },
+    { key: 'admin', label: 'Yönetim', href: '/ayarlar', icon: 'settings', perm: 'settings.write', hidden: true, match: ['/ayarlar', '/gunluk'], sub: [
+      { href: '/ayarlar', label: 'Ayarlar ve personel', icon: 'settings', perm: 'settings.write' },
+      { href: '/gunluk', label: 'İşlem günlüğü', icon: 'history', perm: 'audit.read' },
+    ] },
+  ];
 }
 
 export function StaffShell({ children }: { children: React.ReactNode }) {
@@ -48,65 +79,56 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
 
   if (!ready || !state || !actor || actor.role === 'customer') return <Loading />;
 
-  const groups: [string, NavItem[]][] = [
-    ['Operasyon', [
-      { href: '/', label: 'Genel bakış', icon: 'dashboard', tech: true },
-      { href: '/randevular', label: 'Randevu takvimi', icon: 'calendar', perm: 'appointment.manage', badge: counts.requests, hot: true },
-      { href: '/atolye', label: 'Atölye panosu', icon: 'board', tech: true },
-      { href: '/is-emirleri', label: 'İş emirleri', icon: 'wrench', tech: true },
-      { href: '/teklifler', label: 'Teklif onayları', icon: 'receipt', perm: 'estimate.write', badge: counts.approvals, hot: true },
-      { href: '/yapay-zeka', label: 'Yapay zekâ asistanı', icon: 'sparkle', perm: 'inspection.write' },
-    ]],
-    ['Kayıtlar', [
-      { href: '/musteriler', label: 'Müşteriler', icon: 'users', perm: 'customer.write' },
-      { href: '/araclar', label: 'Araçlar', icon: 'car', tech: true },
-      { href: '/hatirlatmalar', label: 'Bakım hatırlatmaları', icon: 'bell', perm: 'reminder.write', badge: counts.reminders },
-    ]],
-    ['Finans ve rapor', [
-      { href: '/tahsilat', label: 'Tahsilat', icon: 'wallet', perm: 'payment.read' },
-      { href: '/raporlar', label: 'Raporlar', icon: 'chart', perm: 'reports.read' },
-    ]],
-    ['Yönetim', [
-      { href: '/katalog', label: 'Parça ve işçilik', icon: 'package', perm: 'estimate.write' },
-      { href: '/ayarlar', label: 'Ayarlar ve personel', icon: 'settings', perm: 'settings.write' },
-      { href: '/gunluk', label: 'İşlem günlüğü', icon: 'history', perm: 'audit.read' },
-    ]],
-  ];
-  const visible = groups.map(([g, items]) => [g, items.filter(i => i.perm ? can(actor, i.perm) : i.tech)] as [string, NavItem[]]).filter(([, items]) => items.length);
-  const active = (href: string) => href === '/' ? path === '/' : path.startsWith(href);
+  const all = sections(counts);
+  const nav = all.filter(s => !s.hidden && show(actor, s.perm));
+  const p = path.replace(/\/$/, '') || '/';
+  const current = all.find(s => s.match.some(m => p === m || p.startsWith(m + '/'))) ?? (p === '/' ? all[0] : undefined);
+  const subs = (current?.sub ?? []).filter(i => show(actor, i.perm));
+  const isDetail = p.includes('/detay');
+  const userItems: SubItem[] = [
+    { href: '/ayarlar', label: 'Ayarlar ve personel', icon: 'settings', perm: 'settings.write' },
+    { href: '/gunluk', label: 'İşlem günlüğü', icon: 'history', perm: 'audit.read' },
+    { href: '/yapay-zeka', label: 'Yapay zekâ asistanı', icon: 'sparkle', perm: 'inspection.write' },
+  ].filter(i => show(actor, i.perm as Permission)) as SubItem[];
+  const pages: PageLink[] = [
+    ...nav.map(s => ({ href: s.href, label: s.label, icon: s.icon, group: 'Ana menü' })),
+    ...all.flatMap(s => (s.sub ?? []).filter(i => show(actor, i.perm) && i.href !== s.href).map(i => ({ href: i.href, label: i.label, icon: i.icon, group: s.label }))),
+  ].filter((x, i, arr) => arr.findIndex(y => y.href === x.href) === i);
 
   return <div className={'shell ' + (menu ? 'menu-open' : '')}>
-    <aside className="sidebar">
-      <div className="side-top"><Link href="/" aria-label="Genel bakış"><Logo /></Link></div>
-      <div className="side-branch"><Icon name="building" size={15} /><div><strong>{state.settings.company.branch}</strong><small>{state.settings.company.address.split(',').at(-1)?.trim()}</small></div></div>
-      <nav className="side-nav">
-        {visible.map(([g, items]) => <div key={g} className="side-group"><span className="side-label">{g}</span>
-          {items.map(i => <Link key={i.href} href={i.href} className={'side-link ' + (active(i.href) ? 'active' : '')} aria-current={active(i.href) ? 'page' : undefined}>
-            <Icon name={i.icon} size={16} /><span>{i.label}</span>{!!i.badge && <em className={'side-badge ' + (i.hot ? 'hot' : '')}>{i.badge}</em>}
-          </Link>)}
-        </div>)}
-      </nav>
-      <div className="side-foot">
-        <div className="side-user"><Avatar name={actor.name} size={30} /><div><strong>{actor.name}</strong><small>{roleLabel[actor.role]}</small></div>
-          <button className="icon-btn" onClick={async () => { await logout(); router.replace('/giris') }} aria-label="Oturumu kapat" title="Oturumu kapat"><Icon name="logout" size={16} /></button></div>
-      </div>
-    </aside>
-    <button className="scrim" aria-label="Menüyü kapat" onClick={() => setMenu(false)} />
-    <div className="main">
-      <header className="topbar">
-        <button className="icon-btn menu-btn" onClick={() => setMenu(!menu)} aria-label="Menü" aria-expanded={menu}><Icon name="menu" size={18} /></button>
-        <CommandPalette groups={visible} />
-        <div className="top-right">
+    <header className="appbar">
+      <div className="appbar-top">
+        <button className="icon-btn menu-btn" onClick={() => setMenu(!menu)} aria-label="Ana menü" aria-expanded={menu}><Icon name="menu" size={18} /></button>
+        <Link href="/" aria-label="Ana sayfa"><Logo light /></Link>
+        <span className="appbar-branch hide-sm">{state.settings.company.branch}</span>
+        <CommandPalette pages={pages} />
+        <div className="appbar-right">
           <span className="top-date">{fmtLongDate(today())}</span>
-          <ThemeToggle />
+          <MenuButton className="user-btn" title="Kullanıcı ve ayarlar menüsü" label={<><Avatar name={actor.name} size={26} /><span className="hide-sm"><b>{actor.name}</b><small>{roleLabel[actor.role]}</small></span></>}>
+            <div className="dropdown-head"><b>{actor.name}</b><small>{roleLabel[actor.role]} · {state.settings.company.branch}</small></div>
+            {userItems.map(i => <Link key={i.href} href={i.href} role="menuitem"><Icon name={i.icon} size={15} />{i.label}</Link>)}
+            {userItems.length > 0 && <hr />}
+            <button type="button" role="menuitem" onClick={() => setTheme()}><Icon name="moon" size={15} className="theme-icon-light" /><Icon name="sun" size={15} className="theme-icon-dark" />Açık / koyu tema</button>
+            <hr />
+            <button type="button" role="menuitem" onClick={async () => { await logout(); router.replace('/giris') }}><Icon name="logout" size={15} />Oturumu kapat</button>
+          </MenuButton>
         </div>
-      </header>
-      {loadError && <div className="banner warn"><Icon name="alert" size={15} />{loadError}</div>}
-      <main className="content">{children}</main>
-    </div>
+      </div>
+      <nav className="mainnav" aria-label="Ana menü">
+        {nav.map(s => <Link key={s.key} href={s.href} className={current?.key === s.key ? 'active' : ''} aria-current={current?.key === s.key ? 'page' : undefined}>
+          {s.label}{!!s.badge && <em className="nav-badge" title="Onay bekleyen talep">{s.badge}</em>}
+        </Link>)}
+      </nav>
+      {subs.length > 1 && !isDetail && <nav className="subnav" aria-label={`${current?.label} alt sayfaları`}>
+        {subs.map(i => <Link key={i.href} href={i.href} className={p === i.href ? 'active' : ''} aria-current={p === i.href ? 'page' : undefined}>{i.label}{!!i.badge && <em className="nav-badge">{i.badge}</em>}</Link>)}
+      </nav>}
+    </header>
+    {loadError && <div className="banner warn"><Icon name="alert" size={15} />{loadError}</div>}
+    <main className="main"><div className="content">{children}</div></main>
   </div>;
 }
 
+interface PageLink { href: string; label: string; icon: IconName; group: string }
 interface PaletteItem { key: string; group: string; icon: IconName; title: React.ReactNode; label: string; sub?: string; run: () => void }
 
 function setTheme(next?: 'light' | 'dark') {
@@ -121,7 +143,7 @@ export function ThemeToggle() {
   </button>;
 }
 
-function CommandPalette({ groups }: { groups: [string, NavItem[]][] }) {
+function CommandPalette({ pages }: { pages: PageLink[] }) {
   const { state, actor, logout } = useStore();
   const router = useRouter();
   const ref = useRef<HTMLDialogElement>(null);
@@ -162,14 +184,14 @@ function CommandPalette({ groups }: { groups: [string, NavItem[]][] }) {
           found.push({ key: 'c' + c.id, group: 'Müşteriler', icon: 'user', label: c.name, title: <b>{c.name}</b>, sub: `${c.no} · ${c.phone}`, run: go(detailHref('/musteriler/detay', c.id)) });
     }
     const actions: PaletteItem[] = [];
-    if (can(actor, 'job.create')) actions.push({ key: 'a-intake', group: 'Komutlar', icon: 'plus', label: 'Yeni araç kabul iş emri', title: 'Yeni araç kabul', sub: 'İş emri aç', run: go('/is-emirleri?yeni=1') });
+    if (can(actor, 'job.create')) actions.push({ key: 'a-intake', group: 'Komutlar', icon: 'plus', label: 'Yeni iş emri araç kabul', title: 'Yeni iş emri (araç kabul)', run: go('/is-emirleri?yeni=1') });
     if (can(actor, 'appointment.manage')) actions.push({ key: 'a-appt', group: 'Komutlar', icon: 'calendar', label: 'Randevu takvimi', title: 'Randevu takvimini aç', run: go('/randevular') });
     actions.push({ key: 'a-theme', group: 'Komutlar', icon: 'moon', label: 'Tema açık koyu karanlık', title: 'Açık/koyu temaya geç', run: () => setTheme() });
     actions.push({ key: 'a-out', group: 'Komutlar', icon: 'logout', label: 'Oturumu kapat çıkış', title: 'Oturumu kapat', run: () => { void logout().then(() => router.replace('/giris')) } });
-    const pages: PaletteItem[] = groups.flatMap(([g, entries]) => entries.map(i => ({ key: 'p' + i.href, group: 'Sayfalar', icon: i.icon, label: i.label, title: i.label, sub: g, run: go(i.href) })));
+    const pageItems: PaletteItem[] = pages.map(i => ({ key: 'p' + i.href, group: 'Sayfalar', icon: i.icon, label: i.label, title: i.label, sub: i.group, run: go(i.href) }));
     const match = (i: PaletteItem) => !term || fold(i.label + ' ' + (i.sub ?? '')).includes(term);
-    return [...found.slice(0, 12), ...actions.filter(match), ...pages.filter(match)];
-  }, [state, actor, q, groups, router, logout]);
+    return [...found.slice(0, 12), ...actions.filter(match), ...pageItems.filter(match)];
+  }, [state, actor, q, pages, router, logout]);
   useEffect(() => { list.current?.querySelector('.cmdk-item.on')?.scrollIntoView({ block: 'nearest' }) }, [sel]);
   const choose = (i?: PaletteItem) => { if (!i) return; setOpen(false); i.run() };
   const rows: React.ReactNode[] = [];
@@ -180,13 +202,13 @@ function CommandPalette({ groups }: { groups: [string, NavItem[]][] }) {
     </button>);
   });
   return <>
-    <button type="button" className="global-search" onClick={() => setOpen(true)} aria-label="Ara veya komut çalıştır">
-      <Icon name="search" size={15} /><span>Plaka, iş emri, müşteri ara veya komut çalıştır</span><kbd>Ctrl K</kbd>
+    <button type="button" className="global-search" onClick={() => setOpen(true)} aria-label="Ara: plaka, iş emri, müşteri">
+      <Icon name="search" size={15} /><span>Plaka, iş emri no, müşteri ara</span><kbd>Ctrl K</kbd>
     </button>
-    <dialog ref={ref} className="cmdk" aria-label="Komut paleti" onClose={() => setOpen(false)} onClick={e => { if (e.target === ref.current) setOpen(false) }}>
+    <dialog ref={ref} className="cmdk" aria-label="Arama" onClose={() => setOpen(false)} onClick={e => { if (e.target === ref.current) setOpen(false) }}>
       {open && <>
         <div className="cmdk-input"><Icon name="search" size={17} />
-          <input autoFocus value={q} placeholder="Ne arıyorsunuz?" aria-label="Arama" aria-controls="cmdk-list"
+          <input autoFocus value={q} placeholder="Plaka, iş emri no, müşteri adı veya sayfa" aria-label="Arama" aria-controls="cmdk-list"
             onChange={e => { setQ(e.target.value); setSel(0) }}
             onKeyDown={e => {
               if (e.key === 'ArrowDown') { e.preventDefault(); setSel(s => Math.min(items.length - 1, s + 1)) }

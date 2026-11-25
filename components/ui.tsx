@@ -5,24 +5,83 @@ import { Icon, type IconName } from './icons';
 
 const tones: Record<string, string> = {
   'Bekliyor': 'amber', 'Onaylı': 'blue', 'Geldi': 'teal', 'İş emri açıldı': 'slate', 'İptal': 'red', 'Gelmedi': 'red',
-  'Kabul edildi': 'slate', 'İnceleniyor': 'blue', 'Onay bekliyor': 'amber', 'İşlemde': 'teal', 'Parça bekliyor': 'orange',
+  'Kabul edildi': 'slate', 'İnceleniyor': 'blue', 'Onay bekliyor': 'amber', 'İşlemde': 'blue', 'Parça bekliyor': 'orange',
   'Son kontrol': 'violet', 'Teslime hazır': 'green', 'Teslim edildi': 'muted',
   'Taslak': 'slate', 'Gönderildi': 'amber', 'Onaylandı': 'green', 'Reddedildi': 'red', 'Geçersiz': 'muted',
   'Uygun': 'green', 'Takip edilmeli': 'amber', 'Acil': 'red',
 };
+/** Soluk zemin + koyu yazı durum rozeti; renkler tek yerde (tones) tanımlıdır. */
 export function Status({ value, tone }: { value: string; tone?: string }) {
-  return <span className={'status ' + (tone ?? tones[value] ?? 'slate')}><i />{value}</span>;
+  return <span className={'status ' + (tone ?? tones[value] ?? 'slate')}>{value}</span>;
 }
 
-export function PageHeader({ title, sub, crumbs, actions }: { title: React.ReactNode; sub?: React.ReactNode; crumbs?: [string, string?][]; actions?: React.ReactNode }) {
-  return <div className="page-head">
-    <div className="page-head-main">
-      {crumbs && <nav className="crumbs" aria-label="Konum">{crumbs.map(([label, href], i) => <span key={i}>{href ? <Link href={href}>{label}</Link> : label}{i < crumbs.length - 1 && <Icon name="right" size={12} />}</span>)}</nav>}
-      <h1>{title}</h1>
-      {sub && <p className="page-sub">{sub}</p>}
+/**
+ * Sayfa başlığı ve altındaki eylem çubuğu (Business Central tarzı).
+ * `actions` eylem çubuğuna yerleşir: metin düğmeler, "Yazdır" gibi açılır menüler.
+ */
+export function PageHeader({ title, sub, crumbs, actions, aside }: { title: React.ReactNode; sub?: React.ReactNode; crumbs?: [string, string?][]; actions?: React.ReactNode; aside?: React.ReactNode }) {
+  return <header className="page-header">
+    <div className="page-head">
+      <div className="page-head-main">
+        {crumbs && <nav className="crumbs" aria-label="Konum">{crumbs.map(([label, href], i) => <span key={i}>{href ? <Link href={href}>{label}</Link> : label}{i < crumbs.length - 1 && <Icon name="right" size={12} />}</span>)}</nav>}
+        <h1>{title}</h1>
+        {sub && <p className="page-sub">{sub}</p>}
+      </div>
+      {aside && <div className="page-head-aside">{aside}</div>}
     </div>
-    {actions && <div className="page-actions">{actions}</div>}
+    {actions && <div className="action-strip page-actions" role="toolbar" aria-label="Sayfa eylemleri">{actions}</div>}
+  </header>;
+}
+
+/** Açılır menü düğmesi (Yazdır, kullanıcı menüsü vb.). Öğeye tıklanınca kapanır. */
+export function MenuButton({ label, icon, children, align = 'right', className = 'btn', title, caret = true }: { label?: React.ReactNode; icon?: IconName; children: React.ReactNode; align?: 'left' | 'right'; className?: string; title?: string; caret?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) };
+    document.addEventListener('mousedown', away); document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc) };
+  }, [open]);
+  return <div className="menu-wrap" ref={ref}>
+    <button type="button" className={className} aria-haspopup="menu" aria-expanded={open} title={title} aria-label={title} onClick={() => setOpen(o => !o)}>
+      {icon && <Icon name={icon} size={15} />}{label}{caret && <Icon name="down" size={13} />}
+    </button>
+    {open && <div className={'dropdown ' + align} role="menu" onClick={e => { if ((e.target as HTMLElement).closest('a, button')) setOpen(false) }}>{children}</div>}
   </div>;
+}
+
+/** Katlanabilir belge bölümü (FastTab). Kapalıyken başlığın yanında kısa özet gösterir. */
+export function FastTab({ title, summary, open: initial = true, actions, children, flush, id }: { title: React.ReactNode; summary?: React.ReactNode; open?: boolean; actions?: React.ReactNode; children: React.ReactNode; flush?: boolean; id?: string }) {
+  const [open, setOpen] = useState(initial);
+  return <section className={'fasttab ' + (open ? 'open' : '')} id={id}>
+    <header className="fasttab-head">
+      <button type="button" className="fasttab-toggle" aria-expanded={open} onClick={() => setOpen(o => !o)}><Icon name={open ? 'down' : 'right'} size={14} /><span>{title}</span></button>
+      {summary && <span className="fasttab-summary">{summary}</span>}
+      {open && actions && <div className="fasttab-actions">{actions}</div>}
+    </header>
+    {open && <div className={flush ? 'fasttab-flush' : 'fasttab-body'}>{children}</div>}
+  </section>;
+}
+
+/** Sağdaki dar bilgi kutusu bölümü (FactBox). */
+export function FactBox({ title, children, actions }: { title: React.ReactNode; children: React.ReactNode; actions?: React.ReactNode }) {
+  return <section className="factbox"><header><h2>{title}</h2>{actions}</header><div className="factbox-body">{children}</div></section>;
+}
+
+/** Rol merkezi sayaç kutucuğu: tıklanınca filtrelenmiş listeyi açar. */
+export function Cue({ label, value, href, tone, foot }: { label: string; value: React.ReactNode; href: string; tone?: 'warn' | 'bad' | 'ok'; foot?: React.ReactNode }) {
+  return <Link href={href} className={'cue ' + (tone ? 'tone-' + tone : '')}>
+    <span className="cue-label">{label}</span>
+    <strong className="cue-value">{value}</strong>
+    {foot && <span className="cue-foot">{foot}</span>}
+  </Link>;
+}
+
+/** Alanlı filtre şeridi (Durum, Tarih, Teknisyen …). */
+export function FilterBar({ children }: { children: React.ReactNode }) {
+  return <div className="filter-bar" role="search">{children}</div>;
 }
 
 export function Card({ title, actions, children, className, flush, sub }: { title?: React.ReactNode; sub?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode; className?: string; flush?: boolean }) {

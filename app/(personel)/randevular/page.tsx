@@ -21,7 +21,11 @@ export default function AppointmentsPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [form, setForm] = useState<null | { preset?: Partial<Appointment>; editing?: Appointment }>(null);
   const [intake, setIntake] = useState<Appointment | null>(null);
-  useEffect(() => { const d = new URLSearchParams(location.search).get('tarih'); if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) setDay(d) }, []);
+  useEffect(() => {
+    const p = new URLSearchParams(location.search), d = p.get('tarih');
+    if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) setDay(d);
+    if (p.get('yeni') === '1') setForm({ preset: { date: d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : today() } });
+  }, []);
 
   const s = state.settings;
   const start = minutes(s.workStart), end = minutes(s.workEnd);
@@ -39,8 +43,13 @@ export default function AppointmentsPage() {
   const capacity = end - start - (minutes(s.breakEnd) - minutes(s.breakStart));
 
   return <>
-    <PageHeader title="Randevu takvimi" sub="Servis alanlarına göre günlük plan. Onaylı randevular kapasiteyi bloke eder; talepler sağda listelenir."
-      actions={<Button variant="primary" icon="plus" onClick={() => setForm({ preset: { date: day } })}>Yeni randevu</Button>} />
+    <PageHeader title="Randevular" sub="Servis alanlarına göre günlük plan. Onaylı randevular kapasiteyi bloke eder; talepler sağda listelenir."
+      actions={<>
+        <Button variant="primary" icon="plus" onClick={() => setForm({ preset: { date: day } })}>Yeni randevu</Button>
+        <Button icon="edit" disabled={!sel || !['Bekliyor', 'Onaylı'].includes(sel.status)} onClick={() => sel && setForm({ editing: sel })}>Seçileni değiştir</Button>
+        <Button icon="clipboard" disabled={!sel || sel.status !== 'Onaylı'} onClick={() => sel && setIntake(sel)}>Araç geldi · kabul</Button>
+        <Button icon="printer" onClick={() => print()}>Günlük planı yazdır</Button>
+      </>} />
     <div className="toolbar">
       <div className="btn-group">
         <Button icon="left" aria-label="Önceki gün" onClick={() => setDay(addDays(day, -1))} />
