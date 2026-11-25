@@ -6,14 +6,14 @@ Shopmonkey araştırmasındaki Workflow, sekmeli iş emri ve sağ toplam/ödeme 
 
 ## Menü yapısı
 
-Dar ve açık renkli ikon rayında beş ana öğe: **İş Akışı, Takvim, Müşteriler, Stok, Raporlar**. Her öğede kısa altyazı ve title etiketi bulunur. Yetkisiz öğeler `can(actor, ...)` ile gizlenir. Ayarlar/araçlar açılır menüsü ve kullanıcı rayın altındadır. Hatırlatmalar, işlem günlüğü ve yapay zekâ asistanı bu alt menüden ve genel aramadan açılır.
+Dar ve açık renkli ikon rayında altı ana öğe: **İş Akışı, İş emirleri, Takvim, Müşteriler, Stok, Raporlar**. Her öğede kısa altyazı ve title etiketi bulunur. Yetkisiz öğeler `can(actor, ...)` ile gizlenir. Alt menü yalnız erişilebilir araçları içerir; “Ayarlar” adı ve bağlantısı yalnız `can(actor, 'settings.write')` olan kullanıcıya görünür. Diğer kullanıcılar için menünün adı “Araçlar”dır. Hatırlatmalar, işlem günlüğü ve yapay zekâ asistanı yetkiye göre bu alt menüden ve genel aramadan açılır.
 
 Üst çubuktaki geniş genel arama mevcut Ctrl+K paletini açar; plaka, araç, müşteri ve iş emri araması korunur. “+ Yeni iş” doğrudan mevcut araç kabul formunu açar ve kayıttan sonra iş emrine gider.
 
 ## Birleştirilen ekranlar ve erişim
 
 - Ayrı Genel bakış kaldırıldı. `/` artık İş Akışı panosudur; `/atolye` aynı panoyu sunan uyumlu adres olarak kalır.
-- İş emirleri İş Akışı altında toplanır. Sayfa başlığındaki görünür **Liste** düğmesi doğrudan `/is-emirleri` listesine gider; araç çubuğundaki Liste görünümü pano filtreleriyle çalışır. Eski liste/adres, filtreler ve kabul formu korunur.
+- **İş emirleri** raydaki ayrı öğeden doğrudan `/is-emirleri` listesine açılır. Panoda yalnız araç çubuğundaki **Liste** görünümü vardır ve pano filtreleriyle çalışır. Başlıktaki tekrarlanan Liste bağlantısı kaldırıldı. Eski liste/adres, filtreler ve kabul formu korunur.
 - Randevular tek **Takvim** adıyla sunulur; günlük alan planı ve talep yönetimi korunur.
 - Araçlar, **Müşteriler** içindeki araç kayıtları bağlantısına ve müşteri dosyasındaki Araçlar sekmesine bağlanır. Mevcut araç detay adresleri çalışır.
 - Parça ve işçilik kataloğu **Stok** adıyla sunulur. Katalog kapsamı ekranda açıklanır.
@@ -47,6 +47,16 @@ Masaüstünde (1024/1280 px) beş sütun kullanılabilir genişliği eşit payla
 - `npm.cmd run build`: başarılı; 25 statik sayfa üretildi.
 - Önceki uygulamada 3012 portunda `/` ve `/portal` için HTTP 200 kontrolü yapılmıştı. Bu düzeltmelerde yerel test sunucusunun açıldığı doğrulandı; oturumlu tarayıcı kontrolü araç erişim hatası nedeniyle yapılamadı.
 - Denetim sonrası tür kontrolü, 23 test ve üretim derlemesi başarılıdır. Denetimdeki 1280 px pano ve 390 px portal ekran görüntüleri incelendi. Güncel ekranlar için tarayıcı önizleme aracı yine “The browser access host is unavailable” döndürdü; yeni düzenin tarayıcıda görsel doğrulaması yapılamadı. Duyarlı düzen kod üzerinden kontrol edildi; cihaz üzerinde görsel doğrulama gerekir.
+
+## 2. tur denetim düzeltmeleri · 25.11.2026
+
+- **Kart eylemleri:** Kartta tek, tam genişlikte birincil düğme var. İşlemde durumunda ana eylem “Son kontrol”, parça bekletme gibi diğer izinli geçişler “⋯” menüsünde. Son kontrolde ileri eylem “Hazır işaretle”; geri alma menüdedir. Kısa etiketler tek satırda tutulur; aşırı dar alanda metin düğme dışına taşmadan kısaltılır, tam eylem adı title içinde kalır. Menü normal akışta açılır, kart sınırından taşmaz. Aynı kurallar açık ve koyu temada geçerlidir. Geçişler hâlâ `allowedMoves` ve `run(moveJob)` kullanır.
+- **Teknisyen rayı:** “Ayarlar” yalnız `settings.write` yetkisinde görünür; teknisyen yalnız erişebildiği araçları görür.
+- **Tahsilat:** POS, kart ve fiş canlandırmaları, rastgele onay/fiş bilgileri ve paylaşım aşaması kaldırıldı. Pencere yöntem seçimi, tutar, açıklama ve “Tahsilatı kaydet” alanlarından oluşur. Saf ön doğrulama `@/lib/rules` içindeki `recordPayment` ile gerçek kullanıcı üzerinden yapılır; kayıt `run(...)` içinde `@/lib/commands` komutuyla sürer. İşlem anahtarı, mükerrer gönderim engeli, bekleme ve hata gösterimi korunur. Başarılı kayıtta pencere kapanır.
+- **Liste erişimi:** Panodaki iki Liste kontrolü teke indirildi; rayda ayrı İş emirleri bağlantısı eklendi. Ana öğe sayısı en fazla altıdır ve liste/detayda doğru öğe etkinleşir.
+- **Şasi:** İş emrinin araç bilgi kutusu tek sütuna alındı. Şasi tek satırdır; gerekirse yalnız kendi alanında yatay kaydırılır.
+- **Kapsam:** Yetki koruması dosyaları, iş kuralları, komutlar, API, veri modeli ve testler değiştirilmedi. Commit yapılmadı.
+- **Doğrulama:** `npm run typecheck` başarılı; `npm test` 23/23 başarılı; `npm run build` başarılı, 25 statik sayfa üretildi. `git diff --check` başarılı. Denetim görüntüsü incelendi. Güncel tarayıcı kontrolü “The browser access host is unavailable” hatası nedeniyle yapılamadı; yeni ekranların görsel doğrulaması tamamlanamadı.
 
 ## Bilinen sınırlar
 

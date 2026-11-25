@@ -49,7 +49,7 @@ export default function Workshop() {
     (index !== 4 || (!!j.deliveredAt && isoDay(j.deliveredAt) === boardDay))));
 
   return <>
-    <PageHeader title="İş Akışı" sub="Kabulden teslime servis işleri" actions={<Link className="btn" href="/is-emirleri"><Icon name="menu" size={16} />Liste</Link>} />
+    <PageHeader title="İş Akışı" sub="Kabulden teslime servis işleri" />
     <div className="toolbar workflow-toolbar">
       <div className="seg">{[['board', 'Sütunlar'], ['list', 'Liste'], ['parts', 'Parça durumu']].map(([v, label]) => <button key={v} className={view === v ? 'active' : ''} onClick={() => setView(v)}>{label}</button>)}</div>
       {actor.role !== 'technician' && <select className="select" value={tech} onChange={e => setTech(e.target.value)} aria-label="Teknisyen filtresi"><option value="">Tüm teknisyenler</option>{technicians(state).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>}
@@ -90,6 +90,9 @@ export default function Workshop() {
               const late = !['Teslime hazır', 'Teslim edildi'].includes(j.status) && new Date(j.promisedAt).getTime() < Date.now();
               const progress = ['Teslim edildi', 'Teslime hazır'].includes(j.status) ? 100 : j.status === 'Son kontrol' ? 85 : ['İşlemde', 'Parça bekliyor'].includes(j.status) ? 60 : j.status === 'Onay bekliyor' ? 35 : j.status === 'İnceleniyor' ? 20 : 5;
               const moves = allowedMoves(j, actor).filter(m => m !== 'İptal');
+              const primaryMove = moves.find(m => m !== 'Parça bekliyor' && !(j.status === 'Son kontrol' && m === 'İşlemde')) ?? moves[0];
+              const otherMoves = moves.filter(m => m !== primaryMove);
+              const primaryLabel = primaryMove === 'Son kontrol' ? 'Son kontrol' : primaryMove === 'Parça bekliyor' ? 'Parça bekle' : primaryMove === 'Teslime hazır' ? 'Hazır işaretle' : primaryMove ? jobActionLabel(primaryMove, j.status) : '';
               return <article key={j.id} draggable={moves.length > 0} onDragStart={() => setDragged(j.id)} onDragEnd={() => setDragged('')} className={'board-card ' + (late ? 'late' : '')}>
                 <Link href={detailHref('/is-emirleri/detay', j.id)} className="board-link">
                   <div className="row-between"><span className="mono small strong">{j.no}</span>{j.status === 'Parça bekliyor' ? <span className="tag orange">Parça bekliyor</span> : late ? <span className="tag red">Gecikme</span> : null}</div>
@@ -101,7 +104,16 @@ export default function Workshop() {
                   <small className="muted">Akış ilerlemesi %{progress}</small>
                   <div className="board-meta"><span><Icon name="user" size={15} />{staffName(state, j.technicianId)}</span><span><Icon name="clock" size={15} />Söz verilen: {isoDay(j.promisedAt) !== today() && fmtDate(j.promisedAt) + ' '}{fmtTime(j.promisedAt)}</span></div>
                 </Link>
-                {moves.length > 0 && <div className="board-actions">{moves.map(m => <button key={m} className="btn sm" onClick={() => run((s, a) => moveJob(s, a, j.id, m), `${j.no} → ${m}`, j.no)}>{jobActionLabel(m, j.status)}</button>)}</div>}
+                {primaryMove && <div className="board-actions">
+                  <button type="button" className="btn primary sm board-primary" title={jobActionLabel(primaryMove, j.status)} onClick={() => run((s, a) => moveJob(s, a, j.id, primaryMove), `${j.no} → ${primaryMove}`, j.no)}><span>{primaryLabel}</span></button>
+                  {otherMoves.length > 0 && <details className="board-more">
+                    <summary className="btn sm" aria-label={`${j.no} diğer geçişler`} title="Diğer geçişler">⋯</summary>
+                    <div>{otherMoves.map(m => <button type="button" key={m} className="btn sm" onClick={e => {
+                      e.currentTarget.closest('details')?.removeAttribute('open');
+                      void run((s, a) => moveJob(s, a, j.id, m), `${j.no} → ${m}`, j.no);
+                    }}>{jobActionLabel(m, j.status)}</button>)}</div>
+                  </details>}
+                </div>}
               </article>;
             })}
             {!items.length && <p className="board-empty">Kayıt yok</p>}

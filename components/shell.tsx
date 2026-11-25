@@ -44,6 +44,7 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
   const groups: [string, NavItem[]][] = [
     ['Çalışma alanı', [
       { href: '/', label: 'İş Akışı', icon: 'board', tech: true },
+      { href: '/is-emirleri', label: 'İş emirleri', icon: 'clipboard', tech: true },
       { href: '/randevular', label: 'Takvim', icon: 'calendar', perm: 'appointment.manage' },
       { href: '/musteriler', label: 'Müşteriler', icon: 'users', perm: 'customer.write' },
       { href: '/katalog', label: 'Stok', icon: 'package', perm: 'estimate.write' },
@@ -58,7 +59,7 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
   ].filter(i => can(actor, i.perm as Permission)) as NavItem[];
   /* İkincil araçlar alt menüde ve genel aramada erişilebilir. */
   const visible = groups.map(([g, items]) => [g, items.filter(i => i.perm ? can(actor, i.perm) : i.tech)] as [string, NavItem[]]).filter(([, items]) => items.length);
-  const active = (href: string) => href === '/' ? path === '/' || path.startsWith('/atolye') || path.startsWith('/is-emirleri') : path.startsWith(href) || (href === '/musteriler' && path.startsWith('/araclar'));
+  const active = (href: string) => href === '/' ? path === '/' || path.startsWith('/atolye') : path.startsWith(href) || (href === '/musteriler' && path.startsWith('/araclar'));
 
   return <div className={'shell ' + (menu ? 'menu-open' : '')}>
     <aside className="sidebar">
@@ -71,7 +72,7 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
         </div>)}
       </nav>
       <div className="side-foot">
-        <details className="rail-tools"><summary title="Ayarlar ve araçlar"><Icon name="settings" size={20} /><span>Ayarlar</span></summary><div>{utilities.map(i => <Link key={i.href} href={i.href}><Icon name={i.icon} size={16} />{i.label}</Link>)}</div></details>
+        {utilities.length > 0 && <details className="rail-tools"><summary title={can(actor, 'settings.write') ? 'Ayarlar ve araçlar' : 'Araçlar'}><Icon name={can(actor, 'settings.write') ? 'settings' : 'menu'} size={20} /><span>{can(actor, 'settings.write') ? 'Ayarlar' : 'Araçlar'}</span></summary><div>{utilities.map(i => <Link key={i.href} href={i.href}><Icon name={i.icon} size={16} />{i.label}</Link>)}</div></details>}
         <div className="side-user" title={`${actor.name} · ${roleLabel[actor.role]}`}><Avatar name={actor.name} size={30} /><div><strong>{actor.name}</strong><small>{roleLabel[actor.role]}</small></div>
           <button className="icon-btn" onClick={async () => { await logout(); router.replace('/giris') }} aria-label="Oturumu kapat" title="Oturumu kapat"><Icon name="logout" size={16} /></button></div>
       </div>

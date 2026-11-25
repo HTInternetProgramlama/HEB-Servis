@@ -107,7 +107,7 @@ function JobDetail() {
         <Card title="Araç">
           <CarDrawing vehicle={vehicle} />
           <div className="row-between mt"><Plate value={vehicle.plate} /><Link href={detailHref('/araclar/detay', vehicle.id)} className="btn sm link">Araç dosyası</Link></div>
-          <KV items={[['Model', `${vehicle.brand} ${vehicle.model} · ${vehicle.year}`], ['Kabul km', km(job.intake.km)], ['Yakıt / vites', `${vehicle.fuel} · ${vehicle.transmission}`], ['Şasi', <span className="mono small" key="v">{vehicle.vin || '—'}</span>]]} />
+          <KV cols={1} items={[['Model', `${vehicle.brand} ${vehicle.model} · ${vehicle.year}`], ['Kabul km', km(job.intake.km)], ['Yakıt / vites', `${vehicle.fuel} · ${vehicle.transmission}`], ['Şasi', <span className="mono small job-vin" key="v">{vehicle.vin || '—'}</span>]]} />
         </Card>
         <Card title="Müşteri">
           <KV cols={1} items={[['Ad / unvan', can(actor, 'customer.write') ? <Link href={detailHref('/musteriler/detay', customer.id)}>{customer.name}</Link> : customer.name], ['Telefon', <a key="p" href={`tel:${customer.phone.replace(/\s/g, '')}`}>{customer.phone}</a>], ['İletişim tercihi', customer.preference]]} />
