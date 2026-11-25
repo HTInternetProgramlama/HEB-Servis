@@ -20,7 +20,7 @@ export function JobTable({ jobs, mode, onPay, empty = 'Kayıt yok' }: { jobs: Jo
   if (!jobs.length) return <Empty icon="wrench" title={empty} />;
   const money_ = actor.role !== 'technician';
   const hours = (iso: string) => Math.round((Date.now() - new Date(iso).getTime()) / 3600000);
-  return <div className="table-wrap"><table className="table">
+  return <div className="table-wrap"><table className="table job-table">
     <thead><tr>
       <th>Araç</th><th className="hide-sm">Müşteri</th><th>Durum</th>
       {mode === 'estimate' ? <><th className="hide-sm">Teklif</th><th className="hide-sm">Gönderim</th></>

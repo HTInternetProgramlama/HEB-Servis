@@ -1249,3 +1249,28 @@ a.plain-link, a.plain-link:hover { color: inherit; text-decoration: none }
 @media (max-width: 1023px) { .wo-layout { grid-template-columns: minmax(0, 1fr) } .wo-side { position: static; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); align-items: start } }
 @media (max-width: 720px) { .wo-side { grid-template-columns: minmax(0, 1fr) } }
 .insp-note { display: block; font-size: 13px; color: var(--ink-2); margin-top: 1px }
+
+/* ───────── Denetim düzeltmeleri ───────── */
+/* Giriş: sloganlı/ızgaralı yan panel yerine sakin zemin + tek model illüstrasyonu */
+.login-side { background: var(--surface-2); align-items: center; padding: 48px }
+.login-side::before { display: none }
+.login-art { width: min(520px, 100%); padding: 0 24px; background: radial-gradient(60% 45% at 50% 80%, var(--surface-3), transparent 70%) }
+.login-side small { text-align: center }
+/* Pano kartı: model adı iki satıra kadar */
+.jc-text strong { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3 }
+/* Raporlar notu */
+.report-hint span { flex: 1; min-width: 0 }
+/* 390 px: iş emri listesi satırları kart düzeninde */
+@media (max-width: 720px) {
+  .job-table thead { display: none }
+  .job-table, .job-table tbody { display: block }
+  .job-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 10px; padding: 10px 12px; border-bottom: 1px solid var(--line) }
+  .job-table tbody tr:last-child { border-bottom: 0 }
+  .job-table td { padding: 0 !important; border: 0 !important; background: none !important }
+  .job-table td:first-child { grid-column: 1 / -1 }
+  .job-table td.num { text-align: right }
+  .job-table td.actions { grid-column: 1 / -1; width: auto; text-align: left }
+}
+.modal-head p .nowrap { white-space: nowrap }
+.seg.pay-methods { display: flex } .seg.pay-methods button { flex: 1; justify-content: center; height: 32px }
+.job-card { overflow: hidden } .jc-foot { flex-wrap: wrap; row-gap: 4px }

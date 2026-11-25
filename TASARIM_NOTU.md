@@ -44,3 +44,11 @@ Eski adresler çalışmaya devam eder; komut paletinde (Ctrl K) "Teklif onaylar�
 - "Stok" yalnız parça/işçilik fiyat listesidir; depo miktarı ve kritik stok takibi veri modelinde olmadığı için eklenmedi.
 - Pano/Liste geçişi ayrı adreslere gider (`/` ve `/is-emirleri`); seçilen teknisyen filtresi iki görünüm arasında taşınmaz.
 - Portal ve giriş ekranlarında yerleşim değiştirilmedi, yalnız görsel dil uyarlandı.
+
+## Denetim sonrası düzeltmeler
+- **Giriş:** Sağ paneldeki slogan, akış adımları, önizleme kartları ve ızgara zemin kaldırıldı. Yerine sakin gri zeminde tek model illüstrasyonu ve ürün adı geldi; solda logo ve form kaldı.
+- **Raporlar:** "PDF için…" notu tek metin bloğu olarak sarılıyor (üç sütuna bölünme hatası giderildi).
+- **İş emri listesi (≤720 px):** Tablo satırları kart düzenine geçiyor. Araç tam satır, altında durum ve tutar, gerekirse "Tahsil et" düğmesi var; durum rozeti artık kesilmiyor.
+- **Tahsilat penceresi:** POS cihazı, kart ve fiş canlandırması kaldırıldı. Pencerede yöntem seçimi, tutar ve açıklama var, ardından "Tahsilatı kaydet". Tutar önce `@/lib/rules` içindeki `recordPayment` ile kuru doğrulanıyor, kayıt `run(recordPayment)` ile yapılıyor. Kayıttan sonra müşteriye iletme seçenekleri gösteriliyor. Alt başlıktaki "kalan" tutarı bölünmüyor.
+- **Asistan:** Araç görselindeki tarama ışığı animasyonu kaldırıldı.
+- **Pano kartı:** Model adı iki satıra kadar sarılıyor. Dar sütunda tutar saatin altına iniyor, kart taşmıyor.

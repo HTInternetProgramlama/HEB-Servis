@@ -3,10 +3,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/components/store';
 import { Loading, Logo, ThemeToggle } from '@/components/shell';
-import { Status } from '@/components/ui';
+import { CarImage } from '@/components/vehicle-identity';
 import { Icon } from '@/components/icons';
 
-const flow = ['Randevu', 'Araç kabul', 'Bulgu ve teklif', 'Müşteri onayı', 'İşlem', 'Tahsilat ve teslim'];
 
 export default function LoginPage() {
   const { ready, actor, login } = useStore();
@@ -37,28 +36,9 @@ export default function LoginPage() {
         <span><Icon name="user" size={14} />Hesabı servis yöneticisi açar</span>
       </div>
     </div>
-    <aside className="login-side" aria-label="Ürün önizlemesi">
-      <div>
-        <span className="eyebrow">Araç bakım ve servis yönetimi</span>
-        <h2 className="mt">Randevudan teslimata <em>tek iş emri</em>, tek ekran.</h2>
-      </div>
-      <ol className="login-flow">{flow.map((t, i) => <li key={t}><span>{i + 1}</span>{t}</li>)}</ol>
-      <div aria-hidden="true">
-        <div className="preview-card">
-          <div className="preview-head"><strong>İE-2026-0148</strong><Status value="İşlemde" /></div>
-          <div className="preview-body">
-            <div className="preview-row"><span>Ön fren balata değişimi</span><span className="mono">1.850,00 ₺</span></div>
-            <div className="preview-row"><span>Fren hidroliği yenileme</span><span className="mono">640,00 ₺</span></div>
-            <div className="preview-row"><span>İşçilik · 1,5 saat</span><span className="mono">1.200,00 ₺</span></div>
-            <div className="preview-total"><span className="muted small">KDV dahil toplam</span><b>4.428,00 ₺</b></div>
-          </div>
-        </div>
-        <div className="preview-card">
-          <div className="preview-head"><span className="small strong">Müşteri onayı</span><Status value="Onaylandı" /></div>
-          <div className="preview-body"><div className="preview-row"><span>Portal üzerinden onaylandı</span><span className="muted">14:32</span></div></div>
-        </div>
-      </div>
-      <small>HEB Servis · Next.js, PostgreSQL ve Supabase Auth</small>
+    <aside className="login-side" aria-hidden="true">
+      <div className="login-art"><CarImage vehicle={{ brand: 'Volkswagen', model: 'Golf', year: 2022 }} eager /></div>
+      <small>HEB Servis · Araç bakım ve servis yönetim sistemi</small>
     </aside>
   </div>;
 }

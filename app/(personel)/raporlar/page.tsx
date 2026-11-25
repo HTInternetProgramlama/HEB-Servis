@@ -66,7 +66,7 @@ export default function ReportsPage() {
           <label className="field"><span>Başlangıç</span><input type="date" value={from} max={to} onChange={e => e.target.value && setFrom(e.target.value)} /></label>
           <label className="field"><span>Bitiş</span><input type="date" value={to} min={from} max={today()} onChange={e => e.target.value && setTo(e.target.value)} /></label>
         </div>
-        <p className="report-hint"><Icon name="bulb" size={14} />PDF için yazdırma penceresinde hedef olarak <b>PDF olarak kaydet</b>i seçin. Belge A4 dikey, kenar boşluklu hazırlanır.</p>
+        <p className="report-hint"><Icon name="bulb" size={14} /><span>PDF için yazdırma penceresinde hedef olarak <b>PDF olarak kaydet</b>i seçin. Belge A4 dikey hazırlanır.</span></p>
       </aside>
       <div className="report-stage" ref={stage} style={{ ['--paper-zoom' as string]: zoom }}><ReportDoc kind={kind} r={r} state={state} by={actor.name} /></div>
     </div>
