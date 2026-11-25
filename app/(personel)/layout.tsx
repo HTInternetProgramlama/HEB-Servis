@@ -1,2 +1,3 @@
 import { StaffShell } from '@/components/shell';
-export default function StaffLayout({ children }: { children: React.ReactNode }) { return <StaffShell>{children}</StaffShell> }
+import { RouteGuard } from '@/components/route-guard';
+export default function StaffLayout({ children }: { children: React.ReactNode }) { return <StaffShell><RouteGuard>{children}</RouteGuard></StaffShell> }
