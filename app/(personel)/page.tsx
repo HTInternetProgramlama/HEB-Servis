@@ -96,7 +96,7 @@ export default function Home() {
 
     <div className="grid-main">
       <div className="stack">
-        <Card title="Bugünkü randevular" sub={fmtDate(day, { day: 'numeric', month: 'long', weekday: 'long' })} flush actions={<Link className="btn sm" href="/randevular">Takvim</Link>}>
+        <Card title="Bugünkü randevular" className="limit-sm" sub={`${fmtDate(day, { day: 'numeric', month: 'long', weekday: 'long' })} · ${todays.length} randevu`} flush actions={<Link className="btn sm" href={'/randevular?tarih=' + day}>Tümü</Link>}>
           {todays.length ? <div className="table-wrap"><table className="table dense">
             <thead><tr><th>Saat</th><th>No</th><th>Araç</th><th className="hide-sm">Müşteri</th><th className="hide-md">Hizmet</th><th>Durum</th></tr></thead>
             <tbody>{todays.map(a => { const job = state.jobs.find(j => j.appointmentId === a.id); return <tr key={a.id}>
@@ -109,10 +109,10 @@ export default function Home() {
             </tr> })}</tbody>
           </table></div> : <Empty icon="calendar" title="Bugün randevu yok" />}
         </Card>
-        <Card title="Bugün teslim edilecekler" sub={`${dueToday.length} iş emri · söz verilen teslim bugün veya teslime hazır`} flush><JobTable jobs={dueToday} sortable={false} emptyText="Bugün teslim edilecek araç yok" /></Card>
+        <Card title="Bugün teslim edilecekler" className="limit-sm" sub={`${dueToday.length} iş emri · söz verilen teslim bugün veya teslime hazır`} flush actions={<Link className="btn sm" href="/is-emirleri?durum=acik">Tümü</Link>}><JobTable jobs={dueToday} sortable={false} compact emptyText="Bugün teslim edilecek araç yok" /></Card>
       </div>
       <div className="stack">
-        <Card title="Dikkat gerektirenler" sub={`${alerts.length} kayıt`} flush>
+        <Card title="Dikkat gerektirenler" className="limit-sm" sub={`${alerts.length} kayıt`} flush actions={<Link className="btn sm" href="/is-emirleri?durum=gecikme">Tümü</Link>}>
           {alerts.length ? <ul className="alert-list">{alerts.slice(0, 9).map((a, i) => <li key={i}><Link href={a.href}><span className={'dot ' + a.tone} /><span>{a.text}</span><Icon name="right" size={14} /></Link></li>)}</ul>
             : <Empty icon="check" title="Bekleyen uyarı yok" />}
         </Card>

@@ -45,6 +45,7 @@ Menü ve sekmeler `can(actor, …)` ile süzülür: teknisyen Ana Sayfa · İş 
 - İş emri tablolarında (liste, ana sayfa) ve bugünkü randevularda `VehicleCell` ile küçük araç illüstrasyonu + plaka.
 - 390 px: iş emri tablosu kart satırlarına dönüşür (İE no + durum, araç, teslim sözü + kalan); belge sayfalarında yalnız "Genel" bölümü açık başlar, diğerleri kapalı; ana sayfada Teknisyen iş yükü ve Son iş emirleri gizlenir, kutucuklar küçülür.
 - Yapay zekâ ekranındaki tarama animasyonu kaldırıldı.
+- 2. tur: ana sayfadaki "Bugün teslim edilecekler" tablosu sıkı görünümde (Tarih, Müşteri, Teknisyen, Tutar sütunları yok), "Teslim sözü" kesilmiyor. 390 px'te ana sayfanın ikincil listeleri (bugünkü randevular, bugün teslim, dikkat gerektirenler) ilk 3 satırla sınırlı; tamamı "Tümü" bağlantısında.
 
 ## Doğrulama
 `npm run typecheck`, `npm test` (23/23), `npm run build` hatasız. 1280 px ve 390 px genişlikte headless Chrome ile yerel test veritabanında (port 3013) ekran görüntüleri alındı; 390 px'te yatay sayfa taşması yok (geniş tablolar kendi içinde kayar).

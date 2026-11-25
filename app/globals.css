@@ -1345,3 +1345,8 @@ th[aria-sort] .th-sort .icon { opacity: 1 }
   .cue { min-height: 58px; padding: 7px 10px }
   .cue-value { font-size: 20px }
 }
+
+/* Telefonda ana sayfanın ikincil listeleri ilk 3 satırla sınırlı; tamamı "Tümü" bağlantısında */
+@media (max-width: 720px) {
+  .limit-sm tbody tr:nth-child(n+4), .limit-sm .alert-list li:nth-child(n+4) { display: none !important }
+}

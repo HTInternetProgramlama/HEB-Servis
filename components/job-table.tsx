@@ -33,7 +33,8 @@ function value(state: State, j: Job, k: Key): string | number {
 }
 
 /** WIP tablosu: yoğun, başlığa tıklanarak sıralanır; satır iş emri belgesini açar. */
-export function JobTable({ jobs, sortable = true, emptyText = 'Kayıt yok' }: { jobs: Job[]; sortable?: boolean; emptyText?: string }) {
+/** compact: dar panellerde Tarih, Müşteri ve Teknisyen sütunları çizilmez. */
+export function JobTable({ jobs, sortable = true, emptyText = 'Kayıt yok', compact = false }: { jobs: Job[]; sortable?: boolean; emptyText?: string; compact?: boolean }) {
   const { state, actor } = useApp();
   const router = useRouter();
   const [sort, setSort] = useState<{ key: Key; dir: 1 | -1 } | null>(null);
@@ -50,9 +51,9 @@ export function JobTable({ jobs, sortable = true, emptyText = 'Kayıt yok' }: { 
   </th>;
   return <div className="table-wrap"><table className="table dense job-grid">
     <thead><tr>
-      {th('no', 'İE No')}{th('date', 'Tarih', 'hide-md')}{th('plate', 'Araç / plaka')}{th('customer', 'Müşteri', 'hide-sm')}
-      {th('tech', 'Teknisyen', 'hide-md')}{th('status', 'Durum')}{th('promised', 'Teslim sözü')}
-      {money_ && th('total', 'Tutar', 'num hide-sm')}{money_ && th('balance', 'Kalan', 'num')}
+      {th('no', 'İE No')}{!compact && th('date', 'Tarih', 'hide-md')}{th('plate', 'Araç / plaka')}{!compact && th('customer', 'Müşteri', 'hide-sm')}
+      {!compact && th('tech', 'Teknisyen', 'hide-md')}{th('status', 'Durum')}{th('promised', 'Teslim sözü')}
+      {money_ && !compact && th('total', 'Tutar', 'num hide-sm')}{money_ && th('balance', 'Kalan', 'num')}
     </tr></thead>
     <tbody>{rows.map(j => {
       const v = state.vehicles.find(x => x.id === j.vehicleId);
@@ -60,13 +61,13 @@ export function JobTable({ jobs, sortable = true, emptyText = 'Kayıt yok' }: { 
       const due = amountDue(j), bal = balance(j);
       return <tr key={j.id} className="row-link" onClick={e => { if (!(e.target as HTMLElement).closest('a')) router.push(detailHref('/is-emirleri/detay', j.id)) }}>
         <td className="c-no"><Link href={detailHref('/is-emirleri/detay', j.id)} className="mono strong">{j.no}</Link></td>
-        <td className="hide-md nowrap">{fmtDate(j.createdAt)}</td>
+        {!compact && <td className="hide-md nowrap">{fmtDate(j.createdAt)}</td>}
         <td className="c-veh"><VehicleCell vehicle={v} sub={v ? String(v.year) : undefined} /></td>
-        <td className="hide-sm">{state.customers.find(c => c.id === j.customerId)?.name}</td>
-        <td className="hide-md nowrap">{staffName(state, j.technicianId)}</td>
+        {!compact && <td className="hide-sm">{state.customers.find(c => c.id === j.customerId)?.name}</td>}
+        {!compact && <td className="hide-md nowrap">{staffName(state, j.technicianId)}</td>}
         <td className="c-status nowrap"><Status value={j.status} />{late && <span className="flag bad" title="Söz verilen teslim zamanı geçti">Gecikme</span>}</td>
         <td className={'c-due nowrap ' + (late ? 'text-bad' : '')}>{fmtDate(j.promisedAt, { day: '2-digit', month: '2-digit' })} {fmtTime(j.promisedAt)}</td>
-        {money_ && <td className="num hide-sm">{due ? money(due) : jobTotal(j) ? <span className="muted" title="Onaylanmamış teklif tutarı">{money(jobTotal(j))}</span> : '—'}</td>}
+        {money_ && !compact && <td className="num hide-sm">{due ? money(due) : jobTotal(j) ? <span className="muted" title="Onaylanmamış teklif tutarı">{money(jobTotal(j))}</span> : '—'}</td>}
         {money_ && <td className={'c-bal num ' + (bal > 0 ? 'strong' : 'muted')}>{bal > 0 ? money(bal) : '—'}</td>}
       </tr>;
     })}</tbody>
