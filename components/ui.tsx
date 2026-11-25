@@ -53,8 +53,10 @@ export function MenuButton({ label, icon, children, align = 'right', className =
 }
 
 /** Katlanabilir belge bölümü (FastTab). Kapalıyken başlığın yanında kısa özet gösterir. */
-export function FastTab({ title, summary, open: initial = true, actions, children, flush, id }: { title: React.ReactNode; summary?: React.ReactNode; open?: boolean; actions?: React.ReactNode; children: React.ReactNode; flush?: boolean; id?: string }) {
+export function FastTab({ title, summary, open: initial = true, mobileOpen, actions, children, flush, id }: { title: React.ReactNode; summary?: React.ReactNode; open?: boolean; mobileOpen?: boolean; actions?: React.ReactNode; children: React.ReactNode; flush?: boolean; id?: string }) {
   const [open, setOpen] = useState(initial);
+  // Dar ekranda belge kısa kalsın: yalnız mobileOpen işaretli bölümler açık başlar.
+  useEffect(() => { if (!mobileOpen && window.matchMedia('(max-width: 720px)').matches) setOpen(false) }, [mobileOpen]);
   return <section className={'fasttab ' + (open ? 'open' : '')} id={id}>
     <header className="fasttab-head">
       <button type="button" className="fasttab-toggle" aria-expanded={open} onClick={() => setOpen(o => !o)}><Icon name={open ? 'down' : 'right'} size={14} /><span>{title}</span></button>

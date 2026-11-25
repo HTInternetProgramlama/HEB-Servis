@@ -48,7 +48,7 @@ export default function AiPage() {
         <p>{status?.configured ? `${status.model} modeli kullanılıyor. Bugün ${status.usedToday} / ${status.limit} çağrı yaptınız.` : 'Anahtar tanımlanana kadar her araç, kural ve şablon motoruyla yine çalışır; ekranda hangi motorun cevap verdiği yazar.'}</p>
         {status?.configured && <div className="quota"><i style={{ width: `${Math.min(100, status.usedToday / status.limit * 100)}%` }} /></div>}
       </div>
-      <div className="ai-hero-art" aria-hidden="true"><div className="scan" /><CarImage vehicle={{ brand: 'Volkswagen', model: 'Golf', year: 2022 }} eager /></div>
+      <div className="ai-hero-art" aria-hidden="true"><CarImage vehicle={{ brand: 'Volkswagen', model: 'Golf', year: 2022 }} eager /></div>
       {usage && <dl className="ai-usage">
         <div><dt>30 gün çağrı</dt><dd>{usage.calls}</dd></div>
         <div><dt>Başarılı</dt><dd>{usage.calls ? `%${Math.round(usage.ok / usage.calls * 100)}` : '—'}</dd></div>

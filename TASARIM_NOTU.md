@@ -38,6 +38,14 @@ Menü ve sekmeler `can(actor, …)` ile süzülür: teknisyen Ana Sayfa · İş 
 - **Müşteri portalı:** aynı lacivert çubuk ve yatay menü; içerik bileşenleri yeni stile uyar.
 - Raporlar, Yapay zekâ, Ayarlar, Stok, Teklif onayları, Hatırlatmalar, Günlük: işlevleri aynı, görünümleri yeni başlık + eylem çubuğu + yoğun tablo stiline geçti.
 
+## Denetim sonrası düzeltmeler
+- Sayaç kutucukları dolu lacivert blok yerine açık zemin, lacivert sayı ve sol vurgu çizgisi (uyarı sarı, gecikme kırmızı, hazır yeşil).
+- Teknisyen ana sayfasında kutucukların başlığın üstüne çıkması düzeltildi (yerleşim kuralı yalnız yönetici kutucuk gruplarına uygulanır).
+- Eylem çubuğunda birincil eylem dolu lacivert düğme. Müşteri kararı beklenen iş emrinde "Onay kaydet / Ret kaydet" eylem çubuğuna taşındı ve birincil eylem oldu; teslime hazırda "Teslim et" birincil.
+- İş emri tablolarında (liste, ana sayfa) ve bugünkü randevularda `VehicleCell` ile küçük araç illüstrasyonu + plaka.
+- 390 px: iş emri tablosu kart satırlarına dönüşür (İE no + durum, araç, teslim sözü + kalan); belge sayfalarında yalnız "Genel" bölümü açık başlar, diğerleri kapalı; ana sayfada Teknisyen iş yükü ve Son iş emirleri gizlenir, kutucuklar küçülür.
+- Yapay zekâ ekranındaki tarama animasyonu kaldırıldı.
+
 ## Doğrulama
 `npm run typecheck`, `npm test` (23/23), `npm run build` hatasız. 1280 px ve 390 px genişlikte headless Chrome ile yerel test veritabanında (port 3013) ekran görüntüleri alındı; 390 px'te yatay sayfa taşması yok (geniş tablolar kendi içinde kayar).
 
@@ -46,4 +54,5 @@ Menü ve sekmeler `can(actor, …)` ile süzülür: teknisyen Ana Sayfa · İş 
 - Tablo sütunlarının taşınması/boyutlandırılması ve kullanıcıya göre kaydedilmesi (Mitchell 1 WIP) yapılmadı.
 - FastTab açık/kapalı durumu sayfa yenilenince hatırlanmaz.
 - `app/motion.css` içindeki eski POS/yazıcı canlandırma stilleri artık kullanılmıyor; temizlenmedi.
-- Teknisyen ve müşteri rollerinde ekran görüntüsüyle ayrıca kontrol yapılmadı (yetki süzgeci kodda uygulanıyor).
+- Müşteri portalı ekran görüntüsüyle ayrıca kontrol edilmedi (teknisyen ana sayfası denetim sonrası kontrol edildi).
+- İş emri dışındaki tablolar (müşteri listesi, tahsilat vb.) 390 px'te kart satırına dönmez; kendi içinde yatay kayar.

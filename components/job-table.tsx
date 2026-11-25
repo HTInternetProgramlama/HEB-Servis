@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useApp } from './store';
 import { Empty, Status } from './ui';
 import { Icon } from './icons';
-import { Plate } from './vehicle-identity';
+import { VehicleCell } from './vehicle-identity';
 import { amountDue, balance, estimateTotals, latestEstimate, staffName } from '@/lib/rules';
 import { fmtDate, fmtTime, money } from '@/lib/format';
 import type { Job, State } from '@/lib/types';
@@ -48,10 +48,10 @@ export function JobTable({ jobs, sortable = true, emptyText = 'Kayıt yok' }: { 
       {label}<Icon name={sort?.key === k ? (sort.dir === 1 ? 'down' : 'up') : 'sort'} size={11} />
     </button> : label}
   </th>;
-  return <div className="table-wrap"><table className="table dense">
+  return <div className="table-wrap"><table className="table dense job-grid">
     <thead><tr>
-      {th('no', 'İE No')}{th('date', 'Tarih', 'hide-sm')}{th('plate', 'Plaka')}{th('vehicle', 'Araç', 'hide-md')}{th('customer', 'Müşteri', 'hide-sm')}
-      {th('tech', 'Teknisyen', 'hide-md')}{th('status', 'Durum')}{th('promised', 'Teslim sözü', 'hide-sm')}
+      {th('no', 'İE No')}{th('date', 'Tarih', 'hide-md')}{th('plate', 'Araç / plaka')}{th('customer', 'Müşteri', 'hide-sm')}
+      {th('tech', 'Teknisyen', 'hide-md')}{th('status', 'Durum')}{th('promised', 'Teslim sözü')}
       {money_ && th('total', 'Tutar', 'num hide-sm')}{money_ && th('balance', 'Kalan', 'num')}
     </tr></thead>
     <tbody>{rows.map(j => {
@@ -59,16 +59,15 @@ export function JobTable({ jobs, sortable = true, emptyText = 'Kayıt yok' }: { 
       const late = isLate(j);
       const due = amountDue(j), bal = balance(j);
       return <tr key={j.id} className="row-link" onClick={e => { if (!(e.target as HTMLElement).closest('a')) router.push(detailHref('/is-emirleri/detay', j.id)) }}>
-        <td><Link href={detailHref('/is-emirleri/detay', j.id)} className="mono strong">{j.no}</Link></td>
-        <td className="hide-sm nowrap">{fmtDate(j.createdAt)}</td>
-        <td>{v ? <Plate value={v.plate} size="sm" /> : '—'}</td>
-        <td className="hide-md">{v ? `${v.brand} ${v.model}` : '—'}</td>
+        <td className="c-no"><Link href={detailHref('/is-emirleri/detay', j.id)} className="mono strong">{j.no}</Link></td>
+        <td className="hide-md nowrap">{fmtDate(j.createdAt)}</td>
+        <td className="c-veh"><VehicleCell vehicle={v} sub={v ? String(v.year) : undefined} /></td>
         <td className="hide-sm">{state.customers.find(c => c.id === j.customerId)?.name}</td>
-        <td className="hide-md">{staffName(state, j.technicianId)}</td>
-        <td><Status value={j.status} />{late && <span className="flag bad" title="Söz verilen teslim zamanı geçti">Gecikme</span>}</td>
-        <td className={'hide-sm nowrap ' + (late ? 'text-bad' : '')}>{fmtDate(j.promisedAt, { day: '2-digit', month: '2-digit' })} {fmtTime(j.promisedAt)}</td>
+        <td className="hide-md nowrap">{staffName(state, j.technicianId)}</td>
+        <td className="c-status nowrap"><Status value={j.status} />{late && <span className="flag bad" title="Söz verilen teslim zamanı geçti">Gecikme</span>}</td>
+        <td className={'c-due nowrap ' + (late ? 'text-bad' : '')}>{fmtDate(j.promisedAt, { day: '2-digit', month: '2-digit' })} {fmtTime(j.promisedAt)}</td>
         {money_ && <td className="num hide-sm">{due ? money(due) : jobTotal(j) ? <span className="muted" title="Onaylanmamış teklif tutarı">{money(jobTotal(j))}</span> : '—'}</td>}
-        {money_ && <td className={'num ' + (bal > 0 ? 'strong' : 'muted')}>{bal > 0 ? money(bal) : '—'}</td>}
+        {money_ && <td className={'c-bal num ' + (bal > 0 ? 'strong' : 'muted')}>{bal > 0 ? money(bal) : '—'}</td>}
       </tr>;
     })}</tbody>
   </table></div>;

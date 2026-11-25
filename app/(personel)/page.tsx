@@ -5,7 +5,7 @@ import { useApp } from '@/components/store';
 import { Card, Cue, Empty, PageHeader, Status } from '@/components/ui';
 import { JobTable, isLate } from '@/components/job-table';
 import { Icon } from '@/components/icons';
-import { Plate } from '@/components/vehicle-identity';
+import { VehicleCell } from '@/components/vehicle-identity';
 import { balance, can, dueReminders, estimateTotals, latestEstimate, roleLabel, serviceName, technicians } from '@/lib/rules';
 import { fmtDate, fmtLongDate, fmtTime, isoDay, money, moneyShort, today } from '@/lib/format';
 
@@ -98,11 +98,11 @@ export default function Home() {
       <div className="stack">
         <Card title="Bugünkü randevular" sub={fmtDate(day, { day: 'numeric', month: 'long', weekday: 'long' })} flush actions={<Link className="btn sm" href="/randevular">Takvim</Link>}>
           {todays.length ? <div className="table-wrap"><table className="table dense">
-            <thead><tr><th>Saat</th><th>No</th><th>Plaka</th><th className="hide-sm">Müşteri</th><th className="hide-md">Hizmet</th><th>Durum</th></tr></thead>
+            <thead><tr><th>Saat</th><th>No</th><th>Araç</th><th className="hide-sm">Müşteri</th><th className="hide-md">Hizmet</th><th>Durum</th></tr></thead>
             <tbody>{todays.map(a => { const job = state.jobs.find(j => j.appointmentId === a.id); return <tr key={a.id}>
               <td className="mono">{a.time}</td>
               <td className="mono small">{job ? <Link href={detailHref('/is-emirleri/detay', job.id)}>{job.no}</Link> : <Link href={'/randevular?tarih=' + a.date}>{a.no}</Link>}</td>
-              <td>{v(a.vehicleId) ? <Plate value={v(a.vehicleId)!.plate} size="sm" /> : '—'}</td>
+              <td><VehicleCell vehicle={v(a.vehicleId)} /></td>
               <td className="hide-sm">{c(a.customerId)?.name}</td>
               <td className="hide-md">{serviceName(state, a.serviceId)}</td>
               <td><Status value={a.status} /></td>
@@ -116,7 +116,7 @@ export default function Home() {
           {alerts.length ? <ul className="alert-list">{alerts.slice(0, 9).map((a, i) => <li key={i}><Link href={a.href}><span className={'dot ' + a.tone} /><span>{a.text}</span><Icon name="right" size={14} /></Link></li>)}</ul>
             : <Empty icon="check" title="Bekleyen uyarı yok" />}
         </Card>
-        <Card title="Teknisyen iş yükü" flush>
+        <Card title="Teknisyen iş yükü" flush className="hide-sm">
           <table className="table dense">
             <thead><tr><th>Teknisyen</th><th className="num">Açık</th><th className="num">İşlemde</th><th className="num">Gecikme</th></tr></thead>
             <tbody>{technicians(state).map(t => {
@@ -128,7 +128,7 @@ export default function Home() {
       </div>
     </div>
 
-    <Card title="Son iş emirleri" flush actions={<Link className="btn sm" href="/is-emirleri?durum=tumu">Tüm iş emirleri</Link>}>
+    <Card title="Son iş emirleri" className="hide-sm" flush actions={<Link className="btn sm" href="/is-emirleri?durum=tumu">Tüm iş emirleri</Link>}>
       <JobTable jobs={recent} sortable={false} />
     </Card>
   </>;

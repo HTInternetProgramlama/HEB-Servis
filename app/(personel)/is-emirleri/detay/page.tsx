@@ -34,6 +34,7 @@ function JobDetail() {
   const [modal, setModal] = useState<'' | 'payment' | 'deliver' | 'evaluate' | 'cancel' | 'move'>('');
   const [share, setShare] = useState<'' | 'estimate' | 'form'>('');
   const [pendingMove, setPendingMove] = useState<JobStatus | null>(null);
+  const [decide, setDecide] = useState<null | 'Onaylandı' | 'Reddedildi'>(null);
   const job = state.jobs.find(j => j.id === id);
   if (!job) return <Empty icon="wrench" title="İş emri bulunamadı"><Link href="/is-emirleri">İş emirlerine dön</Link></Empty>;
   if (actor.role === 'technician' && job.technicianId !== actor.userId) return <Empty icon="lock" title="Bu iş emri size atanmamış">Atanan işlerinizi İş Emirleri listesinde görebilirsiniz.</Empty>;
@@ -54,13 +55,17 @@ function JobDetail() {
     run((s, a) => moveJob(s, a, job!.id, m), `${job!.no} → ${m}`, job!.no);
   }
   const forward = moves.filter(m => m !== 'İptal');
+  // Müşteri kararı bekleniyorsa birincil eylem "Onay kaydet" olur; durum geçişleri ikincil kalır.
+  const decidable = can(actor, 'estimate.write') && latest?.status === 'Gönderildi';
+  const delivering = job.status === 'Teslime hazır' && can(actor, 'payment.write');
 
   return <>
     <PageHeader crumbs={[['İş Emirleri', '/is-emirleri'], [job.no]]}
       title={<span className="title-row">İş Emri <span className="mono">{job.no}</span><Status value={job.status} /></span>}
       sub={<>{serviceName(state, job.serviceId)} · {vehicle.brand} {vehicle.model} · {customer.name} · kabul {fmtDateTime(job.createdAt)}</>}
       actions={<>
-        {forward.map((m, i) => <Button key={m} variant={i === 0 ? 'primary' : 'default'} onClick={() => doMove(m)}>{m === 'Teslime hazır' && job.status === 'Onay bekliyor' ? 'İşlemsiz teslime hazırla' : m === 'Parça bekliyor' ? 'Parça bekliyor' : `${m} olarak işaretle`}</Button>)}
+        {decidable && <><Button variant="primary" icon="check" onClick={() => setDecide('Onaylandı')}>Onay kaydet</Button><Button onClick={() => setDecide('Reddedildi')}>Ret kaydet</Button></>}
+        {forward.map((m, i) => <Button key={m} variant={i === 0 && !decidable && !delivering ? 'primary' : 'default'} onClick={() => doMove(m)}>{m === 'Teslime hazır' && job.status === 'Onay bekliyor' ? 'İşlemsiz teslime hazırla' : m === 'Parça bekliyor' ? 'Parça bekliyor' : `${m} olarak işaretle`}</Button>)}
         {job.status === 'Teslime hazır' && can(actor, 'payment.write') && <Button variant="primary" icon="check" onClick={() => setModal('deliver')}>Teslim et</Button>}
         {showMoney && can(actor, 'payment.write') && balance(job) > 0 && <Button icon="wallet" onClick={() => setModal('payment')}>Tahsilat al</Button>}
         {can(actor, 'estimate.write') && <MenuButton icon="send" label="Gönder" align="left">
@@ -79,7 +84,7 @@ function JobDetail() {
 
     <div className="doc-layout">
       <div className="doc-main">
-        <FastTab title="Genel" summary={`${staffName(state, job.technicianId)} · teslim sözü ${fmtDateTime(job.promisedAt)}`}>
+        <FastTab title="Genel" mobileOpen summary={`${staffName(state, job.technicianId)} · teslim sözü ${fmtDateTime(job.promisedAt)}`}>
           <KV cols={3} items={[
             ['İş emri no', <span key="n" className="mono">{job.no}</span>],
             ['Hizmet türü', serviceName(state, job.serviceId)],
@@ -163,6 +168,7 @@ function JobDetail() {
       </aside>
     </div>
 
+    {decide && latest && <DecisionModal job={job} estimate={latest} result={decide} onClose={() => setDecide(null)} />}
     {modal === 'payment' && <PaymentForm open job={job} onClose={() => setModal('')} />}
     {modal === 'deliver' && <DeliveryForm open job={job} onClose={() => setModal('')} onDone={() => router.push(detailHref('/servis-formu', job.id))} />}
     {modal === 'evaluate' && <EvaluationForm open job={job} onClose={() => setModal('')} />}

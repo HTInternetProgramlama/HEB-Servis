@@ -38,7 +38,7 @@ function VehicleDetail() {
       </>} />
     <div className="doc-layout">
       <div className="doc-main">
-        <FastTab title="Genel" summary={`${v.fuel} · ${v.transmission} · ${km(v.km)}`}>
+        <FastTab title="Genel" mobileOpen summary={`${v.fuel} · ${v.transmission} · ${km(v.km)}`}>
           <KV cols={3} items={[['Plaka', <Plate key="p" value={v.plate} size="sm" />], ['Marka / model', `${v.brand} ${v.model}`], ['Model yılı', String(v.year)], ['Sahibi', ownerLink], ['Şasi no', <span className="mono small" key="vin">{v.vin || '—'}</span>], ['Renk', v.color || '—'], ['Yakıt / vites', `${v.fuel} · ${v.transmission}`], ['Son bilinen km', km(v.km)], ['Kayıt tarihi', fmtDate(v.createdAt)]]} />
         </FastTab>
         <FastTab title="Servis geçmişi" summary={`${jobs.length} ziyaret`} flush>

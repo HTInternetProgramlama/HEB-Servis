@@ -47,7 +47,7 @@ function CustomerDetail() {
       </>} />
     <div className="doc-layout">
       <div className="doc-main">
-        <FastTab title="Genel" summary={`${c.phone} · ${c.preference}`}>
+        <FastTab title="Genel" mobileOpen summary={`${c.phone} · ${c.preference}`}>
           <KV cols={3} items={[['Müşteri no', c.no], ['Tür', c.kind], [c.kind === 'Kurumsal' ? 'Vergi no' : 'T.C. kimlik no', c.taxNo || '—'], ['Telefon', c.phone], ['E-posta', c.email || '—'], ['İletişim tercihi', c.preference], ['Adres', c.address || '—'], ['KVKK onayı', c.consent ? 'Alındı' : 'Yok'], ['Kayıt tarihi', fmtDate(c.createdAt)], ['Portal hesabı', portalUser ? portalUser.email : 'Açılmadı']]} />
         </FastTab>
 
