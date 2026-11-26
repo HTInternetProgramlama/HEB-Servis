@@ -217,6 +217,21 @@ export function seed(clock = new Date()): State {
       { id: 'e3', customerId: 'c6', jobId: 'j3', punctuality: 3, payment: 5, communication: 4, reason: 'Geç geldi ancak önceden bilgi verdi.', at: iso(addDays(base, -13), '17:10'), by: 'Selin Arslan' },
     ],
     catalog,
+    stockItems: [
+      { id: 'stock-oil', code: 'YAG-5W30', name: 'Motor yağı 5W-30', unit: 'lt', minimum: 2000, active: true },
+      { id: 'stock-filter', code: 'FLT-YAG', name: 'Yağ filtresi', unit: 'adet', minimum: 500, active: true },
+      { id: 'stock-brake', code: 'FRN-BAL-ON', name: 'Ön fren balatası', unit: 'takım', minimum: 300, active: true },
+    ],
+    stockMovements: [
+      { id: 'sm1', itemId: 'stock-oil', kind: 'Giriş', quantity: 6000, reason: 'Başlangıç depo sayımı', at: iso(addDays(base, -7), '09:00'), by: 'Selin Arslan' },
+      { id: 'sm2', itemId: 'stock-oil', kind: 'Çıkış', quantity: 450, reason: 'Periyodik bakımda kullanılan motor yağı', at: iso(addDays(base, -2), '14:00'), by: 'Selin Arslan' },
+      { id: 'sm3', itemId: 'stock-filter', kind: 'Giriş', quantity: 400, reason: 'Tedarikçiden gelen yağ filtreleri', at: iso(addDays(base, -5), '10:00'), by: 'Burak Çelik' },
+      { id: 'sm4', itemId: 'stock-brake', kind: 'Giriş', quantity: 200, reason: 'Başlangıç depo sayımı', at: iso(addDays(base, -7), '09:00'), by: 'Selin Arslan' },
+    ],
+    technicianAwards: [
+      { id: 'award1', technicianId: 'u-t1', badge: 'Kalite', title: 'Titiz son kontrol', reason: 'Bakım sonrası kontrol adımlarını eksiksiz tamamladı.', reward: 'İleri seviye teknik eğitim katılımı', at: iso(addDays(base, -3), '17:00'), by: 'Hasan Emre' },
+      { id: 'award2', technicianId: 'u-t2', badge: 'İşbirliği', title: 'Ekip desteği', reason: 'Yoğun servis gününde ekip arkadaşlarının işlerini destekledi.', reward: 'Teşekkür belgesi', at: iso(addDays(base, -2), '17:00'), by: 'Hasan Emre' },
+    ],
     reminders: [],
     audit: [{ id: 'au0', at: now, by: 'Sistem', role: 'admin', action: 'Örnek veri yüklendi' }],
   };

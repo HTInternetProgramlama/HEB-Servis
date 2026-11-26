@@ -10,6 +10,7 @@ const rules: [string, Permission][] = [
   ['/tahsilat', 'payment.read'], ['/raporlar', 'reports.read'], ['/musteriler', 'customer.write'], ['/teklifler', 'estimate.write'],
   ['/randevular', 'appointment.manage'], ['/hatirlatmalar', 'reminder.write'], ['/katalog', 'estimate.write'],
   ['/ayarlar', 'settings.write'], ['/gunluk', 'audit.read'], ['/yapay-zeka', 'inspection.write'],
+  ['/stok', 'stock.read'], ['/teknisyen-rozetleri', 'award.read'],
 ];
 
 export function RouteGuard({ children }: { children: React.ReactNode }) {

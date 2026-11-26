@@ -7,6 +7,7 @@ export const commandArity = {
   sendEstimate: 1, decideEstimate: 5, recordPayment: 2, deliverJob: 2,
   addNote: 1, editNote: 2, evaluateVisit: 1, upsertCatalog: 2, logReminder: 1,
   updateSettings: 1, upsertUser: 2,
+  evaluateCustomer: 1, upsertStockItem: 2, recordStockMovement: 1, awardTechnician: 1,
 } as const;
 export type CommandName = keyof typeof commandArity;
 export interface Command { name: CommandName; args: unknown[] }

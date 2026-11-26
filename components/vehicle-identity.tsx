@@ -11,6 +11,11 @@ export function Plate({ value, size }: { value: string; size?: 'sm' | 'lg' }) {
 
 export function BrandMark({ brand }: { brand: string }) {
   const name = brand.trim().toLocaleLowerCase('tr');
+  const asset = ({ dacia: 'dacia.svg', hyundai: 'hyundai.svg', peugeot: 'peugeot.svg' } as Record<string, string>)[name];
+  if (asset) return <span className="brand-mark heb-brand-asset" title={brand}>
+    {/* SVG dosyaları yerel sunulur; en-boy oranı korunur. */}
+    <img src={`${pagesBasePath}/brand/${asset}`} alt={brand} width={48} height={48} draggable={false} />
+  </span>;
   let mark;
   if (name === 'volkswagen' || name === 'vw') mark = <><circle cx="24" cy="24" r="21" /><path d="m14 7 10 17L34 7M7 18l9 21 8-16 8 16 9-21" /></>;
   else if (name === 'renault') mark = <><path d="M24 2 41 24 24 46 7 24Z" /><path d="m20 8 12 16-12 16M28 8 16 24l12 16" /></>;
@@ -19,7 +24,6 @@ export function BrandMark({ brand }: { brand: string }) {
   else if (name === 'toyota') mark = <><ellipse cx="24" cy="24" rx="22" ry="15" /><ellipse cx="24" cy="24" rx="8" ry="15" /><ellipse cx="24" cy="17" rx="17" ry="7" /></>;
   else if (name === 'fiat') mark = <text x="24" y="33" textAnchor="middle" fontSize="27" fontWeight="900" fontFamily="Arial Narrow,Arial" letterSpacing="-2" fill="currentColor" stroke="none">FIAT</text>;
   else if (name === 'ford') mark = <><ellipse cx="24" cy="24" rx="23" ry="14" /><text x="24" y="30" textAnchor="middle" fontSize="17" fontStyle="italic" fontFamily="Georgia" fill="currentColor" stroke="none">Ford</text></>;
-  else if (name === 'hyundai') mark = <><ellipse cx="24" cy="24" rx="22" ry="14" /><path d="M15 16c3 5 4 12 2 17M33 15c-2 5-3 12-1 17M17 24h14" /></>;
   else mark = <text x="24" y="31" textAnchor="middle" fontSize="19" fontWeight="700" fill="currentColor" stroke="none">{brand.slice(0, 2).toLocaleUpperCase('tr')}</text>;
   return <span className="brand-mark" title={brand}><svg viewBox="0 0 48 48" role="img" aria-label={`${brand}`} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round">{mark}</svg></span>;
 }

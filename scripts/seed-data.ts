@@ -22,7 +22,10 @@ export function databaseSeed(authIds: Map<string, string>, adminEmail: string): 
     payments: j.payments.map(p => ({ ...p, id: id('payment', `${j.id}:${p.id}`) })),
   }));
   s.notes = s.notes.map(n => ({ ...n, id: id('note', n.id), customerId: id('customer', n.customerId), jobId: n.jobId ? id('job', n.jobId) : undefined }));
-  s.evaluations = s.evaluations.map(e => ({ ...e, id: id('evaluation', e.id), customerId: id('customer', e.customerId), jobId: id('job', e.jobId) }));
+  s.evaluations = s.evaluations.map(e => ({ ...e, id: id('evaluation', e.id), customerId: id('customer', e.customerId), jobId: e.jobId ? id('job', e.jobId) : '' }));
+  s.stockItems = (s.stockItems ?? []).map(i => ({ ...i, id: id('stock', i.id) }));
+  s.stockMovements = (s.stockMovements ?? []).map(m => ({ ...m, id: id('movement', m.id), itemId: id('stock', m.itemId), jobId: m.jobId ? id('job', m.jobId) : undefined }));
+  s.technicianAwards = (s.technicianAwards ?? []).map(a => ({ ...a, id: id('award', a.id), technicianId: user(a.technicianId), jobId: a.jobId ? id('job', a.jobId) : undefined }));
   s.reminders = s.reminders.map(r => ({ ...r, id: id('reminder', r.id), vehicleId: id('vehicle', r.vehicleId) }));
   s.audit = s.audit.map(a => ({ ...a, id: id('audit', a.id) }));
   return s;

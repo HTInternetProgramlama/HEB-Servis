@@ -120,6 +120,20 @@ export interface Evaluation {
 
 export interface CatalogItem { id: string; kind: LineKind; code: string; name: string; unit: string; unitPrice: number; active: boolean }
 
+// Stock quantities use hundredths, as estimate quantities do (100 = 1 unit).
+export interface StockItem {
+  id: string; code: string; name: string; unit: string; minimum: number; active: boolean;
+}
+export interface StockMovement {
+  id: string; itemId: string; kind: 'Giriş' | 'Çıkış'; quantity: number;
+  reason: string; jobId?: string; at: string; by: string;
+}
+export type TechnicianBadge = 'Kalite' | 'Dakiklik' | 'İşbirliği' | 'Ustalık';
+export interface TechnicianAward {
+  id: string; technicianId: string; badge: TechnicianBadge; title: string; reason: string;
+  reward: string; jobId?: string; at: string; by: string;
+}
+
 export type ReminderResult = 'Randevu alındı' | 'Ulaşılamadı' | 'Daha sonra aranacak' | 'İstemiyor';
 export interface ReminderLog { id: string; vehicleId: string; result: ReminderResult; note: string; at: string; by: string }
 
@@ -137,6 +151,9 @@ export interface State {
   notes: CustomerNote[];
   evaluations: Evaluation[];
   catalog: CatalogItem[];
+  stockItems?: StockItem[];
+  stockMovements?: StockMovement[];
+  technicianAwards?: TechnicianAward[];
   reminders: ReminderLog[];
   audit: AuditEntry[];
 }

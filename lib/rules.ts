@@ -1,7 +1,7 @@
 import type {
   Actor, Appointment, Channel, CatalogItem, Customer, CustomerNote, Damage, Estimate, EstimateLine, Evaluation,
   Inspection, InspectionResult, Job, JobStatus, NoteCategory, Payment, PaymentMethod, ReminderResult, Role,
-  Settings, State, User, Vehicle,
+  Settings, State, User, Vehicle, StockItem, StockMovement, TechnicianAward,
 } from './types';
 import { addMonths, minutes, normalizePlate, nowIso, today, uid, weekday } from './format';
 
@@ -14,7 +14,7 @@ export type Permission =
   | 'customer.write' | 'vehicle.write' | 'appointment.manage' | 'job.create' | 'job.status' | 'inspection.write'
   | 'estimate.write' | 'estimate.decide' | 'payment.write' | 'payment.read' | 'note.read' | 'note.write'
   | 'evaluation.write' | 'reports.read' | 'reminder.write' | 'catalog.write' | 'settings.write' | 'staff.write'
-  | 'audit.read' | 'staff.area';
+  | 'audit.read' | 'staff.area' | 'stock.read' | 'stock.write' | 'award.read' | 'award.write';
 
 const matrix: Record<Permission, Role[]> = {
   'customer.write': ['admin', 'advisor'],
@@ -37,6 +37,10 @@ const matrix: Record<Permission, Role[]> = {
   'staff.write': ['admin'],
   'audit.read': ['admin'],
   'staff.area': ['admin', 'advisor', 'technician'],
+  'stock.read': ['admin', 'advisor'],
+  'stock.write': ['admin', 'advisor'],
+  'award.read': ['admin', 'advisor', 'technician'],
+  'award.write': ['admin'],
 };
 export function can(actor: Actor | null | undefined, permission: Permission) { return !!actor && matrix[permission].includes(actor.role) }
 function need(actor: Actor, permission: Permission) { ensure(can(actor, permission), 'Bu işlem için yetkiniz yok.') }
@@ -431,11 +435,66 @@ export function editNote(state: State, actor: Actor, noteId: string, text: strin
 export function evaluateVisit(state: State, actor: Actor, input: { jobId: string; punctuality: number; payment: number; communication: number; reason: string }, clock = new Date()): State {
   need(actor, 'evaluation.write');
   const job = findJob(state, input.jobId);
-  ensure(job.status === 'Teslim edildi', 'Yalnız tamamlanmış ziyaretler değerlendirilebilir.');
   for (const n of [input.punctuality, input.payment, input.communication]) ensure(Number.isInteger(n) && n >= 1 && n <= 5, 'Her ölçüt için 1–5 arası puan seçin.');
-  ensure(input.reason.trim().length >= 5, 'Değerlendirme gerekçesi yazın.');
+  ensure(input.reason.trim().length >= 5 && input.reason.trim().length <= 500, 'Değerlendirme gerekçesi 5–500 karakter olmalı.');
   const evaluation: Evaluation = { id: uid(), customerId: job.customerId, ...input, reason: input.reason.trim(), by: actor.name, ...stamp(clock) };
   return { ...state, evaluations: [...state.evaluations.filter(e => e.jobId !== input.jobId), evaluation] };
+}
+/** A customer-level evaluation uses an empty jobId; persistence stores it as NULL. */
+export function evaluateCustomer(state: State, actor: Actor, input: { customerId: string; punctuality: number; payment: number; communication: number; reason: string }, clock = new Date()): State {
+  need(actor, 'evaluation.write');
+  ensure(state.customers.some(c => c.id === input.customerId), 'Müşteri bulunamadı.');
+  for (const n of [input.punctuality, input.payment, input.communication]) ensure(Number.isInteger(n) && n >= 1 && n <= 5, 'Her ölçüt için 1–5 arası puan seçin.');
+  ensure(input.reason.trim().length >= 5 && input.reason.trim().length <= 500, 'Değerlendirme gerekçesi 5–500 karakter olmalı.');
+  const old = state.evaluations.find(e => e.customerId === input.customerId && !e.jobId);
+  const evaluation: Evaluation = { ...input, id: old?.id ?? uid(), jobId: '', reason: input.reason.trim(), at: nowIso(clock), by: actor.name };
+  return { ...state, evaluations: [...state.evaluations.filter(e => e.id !== old?.id), evaluation] };
+}
+
+/* ───────────── Stok ve teknisyen ödülleri ───────────── */
+export function stockBalance(state: State, itemId: string) {
+  return (state.stockMovements ?? []).filter(m => m.itemId === itemId).reduce((sum, m) => sum + (m.kind === 'Giriş' ? m.quantity : -m.quantity), 0);
+}
+export function lowStockItems(state: State) {
+  return (state.stockItems ?? []).filter(i => i.active && stockBalance(state, i.id) <= i.minimum);
+}
+export function upsertStockItem(state: State, actor: Actor, input: Omit<StockItem, 'id'>, id?: string): State {
+  need(actor, 'stock.write');
+  ensure(input.code.trim().length > 0 && input.code.trim().length <= 50, 'Stok kodu 1–50 karakter olmalı.');
+  ensure(input.name.trim().length >= 2 && input.name.trim().length <= 150, 'Stok adı 2–150 karakter olmalı.');
+  ensure(input.unit.trim().length > 0 && input.unit.trim().length <= 30, 'Birim zorunlu (en fazla 30 karakter).');
+  ensure(Number.isSafeInteger(input.minimum) && input.minimum >= 0 && input.minimum <= 100_000_000, 'Minimum stok geçerli bir miktar olmalı.');
+  const items = state.stockItems ?? [];
+  ensure(!id || items.some(i => i.id === id), 'Stok kartı bulunamadı.');
+  ensure(!items.some(i => i.id !== id && i.code.toLocaleUpperCase('tr-TR') === input.code.trim().toLocaleUpperCase('tr-TR')), 'Stok kodu zaten kullanılıyor.');
+  const current = items.find(i => i.id === id);
+  ensure(!current || current.unit === input.unit.trim() || !(state.stockMovements ?? []).some(m => m.itemId === id), 'Hareket görmüş stok kartının birimi değiştirilemez.');
+  const item: StockItem = { ...input, id: id ?? uid(), code: input.code.trim(), name: input.name.trim(), unit: input.unit.trim() };
+  return { ...state, stockItems: current ? items.map(i => i.id === id ? item : i) : [...items, item] };
+}
+export function recordStockMovement(state: State, actor: Actor, input: Omit<StockMovement, 'id' | 'at' | 'by'>, clock = new Date()): State {
+  need(actor, 'stock.write');
+  const item = (state.stockItems ?? []).find(i => i.id === input.itemId);
+  ensure(item?.active, 'Aktif bir stok kartı seçin.');
+  ensure(input.kind === 'Giriş' || input.kind === 'Çıkış', 'Geçerli hareket türü seçin.');
+  ensure(Number.isSafeInteger(input.quantity) && input.quantity > 0 && input.quantity <= 100_000_000, 'Miktar sıfırdan büyük ve en fazla 1.000.000 olmalı.');
+  ensure(input.reason.trim().length >= 3 && input.reason.trim().length <= 500, 'Hareket gerekçesi 3–500 karakter olmalı.');
+  if (input.jobId) findJob(state, input.jobId);
+  const nextBalance = stockBalance(state, input.itemId) + (input.kind === 'Giriş' ? input.quantity : -input.quantity);
+  ensure(nextBalance >= 0, 'Yetersiz stok: çıkış miktarı mevcut stoktan fazla olamaz.');
+  ensure(Number.isSafeInteger(nextBalance) && nextBalance <= 100_000_000, 'Stok üst sınırı aşılıyor.');
+  const movement: StockMovement = { ...input, id: uid(), reason: input.reason.trim(), at: nowIso(clock), by: actor.name };
+  return { ...state, stockMovements: [...(state.stockMovements ?? []), movement] };
+}
+export function awardTechnician(state: State, actor: Actor, input: Omit<TechnicianAward, 'id' | 'at' | 'by'>, clock = new Date()): State {
+  need(actor, 'award.write');
+  ensure(state.users.some(u => u.id === input.technicianId && u.role === 'technician' && u.active), 'Aktif bir teknisyen seçin.');
+  ensure(['Kalite', 'Dakiklik', 'İşbirliği', 'Ustalık'].includes(input.badge), 'Geçerli rozet seçin.');
+  ensure(input.title.trim().length >= 3 && input.title.trim().length <= 100, 'Ödül başlığı 3–100 karakter olmalı.');
+  ensure(input.reason.trim().length >= 5 && input.reason.trim().length <= 500, 'Ödül gerekçesi 5–500 karakter olmalı.');
+  ensure(input.reward.trim().length <= 200, 'Ödül açıklaması en fazla 200 karakter olmalı.');
+  if (input.jobId) ensure(findJob(state, input.jobId).technicianId === input.technicianId, 'İş emri seçilen teknisyene atanmış olmalı.');
+  return { ...state, technicianAwards: [...(state.technicianAwards ?? []), { ...input, id: uid(), title: input.title.trim(), reason: input.reason.trim(), reward: input.reward.trim(), at: nowIso(clock), by: actor.name }] };
 }
 export function customerScore(state: State, customerId: string) {
   const list = state.evaluations.filter(e => e.customerId === customerId);

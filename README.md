@@ -1,12 +1,14 @@
 # HEB Servis · sürüm 0.5
 
+26 Kasım 2026 geliştirmeleri ve yeni modüllerin kullanımı: [sürüm notları](RELEASE_NOTES_2026-11-26.md).
+
 Araç Bakım ve Servis Yönetim Sistemi. Raporun mimarisi uygulanır: Next.js/TypeScript, Supabase üzerinde PostgreSQL, Supabase Auth ve özel Storage alanı. Aktif backend SQLite veya localStorage kullanmaz.
 
 ## Çalıştırma
 
 Node.js 22.18 veya üzeri gerekir. `npm ci`, ardından `npm run dev`. Adres: http://127.0.0.1:3001/giris. Üretim çalıştırması: `npm run build`, sonra `npm start`. Kök klasördeki `HEB Servisi Ac.cmd` de uygulamayı açar.
 
-Yönetici girişi ilk kurulumda `.env.local` içindeki `HEB_ADMIN_EMAIL` ve `HEB_ADMIN_PASSWORD` ile oluşturulur. Bu ayarları sonradan değiştirmek mevcut Auth parolasını değiştirmez. Personel ve müşteri hesaplarını yönetici Ayarlar ve personel bölümünden açar. Yeni hesap için rastgele bir başlangıç parolası üretilir; yönetici kullanıcıyı yeniden düzenleyip bilinen ilk parolasını belirler.
+Yönetici girişi ilk kurulumda `.env.local` içindeki `HEB_ADMIN_EMAIL` ve `HEB_ADMIN_PASSWORD` ile oluşturulur. Bu ayarları sonradan değiştirmek mevcut Auth parolasını değiştirmez. Personel hesapları Ayarlar ve personel bölümünden açılır. Müşteri kartında e-posta ve araç kaydından sonra portal hesabı açılıp şifre oluşturma e-postası gönderilebilir. Müşteri şifresini kendisi belirler; gönderim sonucu kartta izlenir.
 
 Kurgusal ders hesapları:
 
@@ -43,7 +45,9 @@ Bulut PostgreSQL bağlantısında TLS ve sunucu kimliği doğrulaması açıktı
 | Kontrol bulguları | Uygun/takip/acil, müşteriye açık/gizli ayrımı, özel fotoğraf yükleme |
 | Teklif | Parça/işçilik, miktar, indirim, KDV, sürümler ve müşteri onayı/ret |
 | Tahsilat ve teslim | Kısmi/tam tahsilat kaydı, tekrar işlem engeli, bakiye ve bakım planı |
-| Müşteri ilişkileri | İç notlar, düzeltme geçmişi ve tamamlanmış ziyaret değerlendirmesi |
+| Müşteri ilişkileri | İç notlar, düzeltme geçmişi, tüm durumlarda ziyaret ve bağımsız müşteri değerlendirmesi |
+| Stok | Stok kartları, giriş/çıkış hareketleri, minimum seviye ve iş emri bağlantısı |
+| Teknisyen başarıları | Kalite, dakiklik, işbirliği ve ustalık rozetleri; gerekçeli ödül geçmişi |
 | Müşteri portalı | Kendi araçları, randevuları, servis takibi, teklif kararı ve açık fotoğraflar |
 | Rapor ve çıktı | Tarih aralığı, hizmet/teknisyen kırılımı, CSV, A4 servis formu |
 | Teknik ön değerlendirme | Kişisel bilgi almayan kural tabanlı öneriler; teknisyen teyidi |
@@ -104,8 +108,8 @@ GitHub Actions aynı kontrolleri ayrı yerel Supabase ortamında çalıştırır
 
 ## Kalan yayın işleri
 
-Vercel yayını henüz yapılmadı. Yayında uygulama değişkenleri Vercel'e tanımlanmalı; bağlantı için Transaction pooler (6543), Auth Site URL/redirect adresleri ve e-posta doğrulama/kurtarma teslimatı ayrıca doğrulanmalı. Kullanıcıların kendi kendine kayıt olması istenmiyorsa Supabase Auth kayıt ayarı buna göre kapatılır; uygulamadaki hesapları yönetici oluşturur.
+Mevcut Vercel adresi https://heb-servis.vercel.app . Yayında uygulama değişkenleri tanımlanmalı; Auth Site URL/redirect adresleri ve e-posta doğrulama/kurtarma teslimatı ayrıca doğrulanmalıdır. Müşteri şifre akışı için `/erisim` yönlendirmesi izinli olmalıdır. Uygulamadaki hesapları yetkili personel oluşturur.
 
-Gerçek karttan ödeme, otomatik SMS/e-posta teslimatı ve harici yapay zekâ sağlayıcısı bağlı değildir. Tahsilat, dışarıda yapılan ödemeyi kaydeder. Teknik ön değerlendirme kural tabanlıdır. SQLite 0.4 dosyaları `.work/sqlite-v04/`, eski veri dosyası `data/` ve mevcut yedekler korunur; buluta otomatik taşınmaz.
+Gerçek karttan ödeme ve otomatik SMS bağlı değildir. Tahsilat, dışarıda yapılan ödemeyi kaydeder. Müşteri şifre e-postaları Supabase Auth üzerinden gönderilir; gerçek teslim sağlayıcının SMTP ve alıcı ayarlarına bağlıdır. SQLite 0.4 dosyaları `.work/sqlite-v04/`, eski veri dosyası `data/` ve mevcut yedekler korunur; buluta otomatik taşınmaz.
 
 Bu sürümde otomatik PostgreSQL, HTTP ve dosya testleri tamamlanmıştır. Windows tarayıcı aracındaki erişim kısıtlaması nedeniyle görsel/etkileşimli arayüz doğrulaması ayrıca yapılmalıdır.

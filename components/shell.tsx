@@ -8,17 +8,12 @@ import { Icon, type IconName } from './icons';
 import { Avatar } from './ui';
 import { Plate } from './vehicle-identity';
 import { DriftLoader } from './car-art';
+import { Logo } from './brand-logo';
+export { Logo } from './brand-logo';
 import { can, dueReminders, roleLabel, type Permission } from '@/lib/rules';
 import { fmtLongDate, fold, normalizePlate, today } from '@/lib/format';
 
 interface NavItem { href: string; label: string; icon: IconName; perm?: Permission; badge?: number; tech?: boolean; hot?: boolean }
-
-export function Logo({ light }: { light?: boolean }) {
-  return <span className={'logo ' + (light ? 'light' : '')}>
-    <svg className="logo-mark" viewBox="0 0 48 48" width="32" height="32" aria-hidden="true"><rect width="48" height="48" rx="12" fill="var(--accent, #d9480f)" /><path d="M11 12h7v11h12V12h7v24h-7v-7H18v7h-7Z" fill="#fff" /><path d="M23 11h2v6h-2zm0 22h2v5h-2z" fill="#fff" opacity=".65" /></svg>
-    <span className="logo-text"><b>HEB</b> Servis</span>
-  </span>;
-}
 
 export function Loading() {
   return <div className="boot"><Logo /><DriftLoader label="Atölye hazırlanıyor…" /></div>;
@@ -68,6 +63,8 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
     ]],
     ['Yönetim', [
       { href: '/katalog', label: 'Parça ve işçilik', icon: 'package', perm: 'estimate.write' },
+      { href: '/stok', label: 'Stok takibi', icon: 'package', perm: 'estimate.write' },
+      { href: '/teknisyen-rozetleri', label: 'Teknisyen başarıları', icon: 'star', tech: true },
       { href: '/ayarlar', label: 'Ayarlar ve personel', icon: 'settings', perm: 'settings.write' },
       { href: '/gunluk', label: 'İşlem günlüğü', icon: 'history', perm: 'audit.read' },
     ]],

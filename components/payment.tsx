@@ -110,7 +110,7 @@ function PaymentStage({ draft, job, done, commit, onFail, onDone, onClose, share
   } as Record<string, React.ReactNode>;
   const lcd = screen[step] ?? screen.approved;
 
-  return <div className={'pay-stage ' + (done ? 'is-done' : '')}>
+  return <div className={'pay-stage heb-payment ' + (done ? 'is-done' : '')}>
     <div className="pay-left">
       <div className={'pay-device ' + (card ? 'pos' : 'tprinter') + ' step-' + step}>
         <div ref={feed} className={'receipt-feed ' + (step === 'torn' ? 'torn' : '')} style={{ height: printing ? feedH : 0 }}>

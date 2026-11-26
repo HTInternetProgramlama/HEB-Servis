@@ -3,8 +3,9 @@ import { useState } from 'react';
 import { useApp } from './store';
 import { Button, Field, FormError, Modal, useFormRunner } from './ui';
 import { Icon } from './icons';
+import { DamageMap } from './car-art';
 import {
-  addCustomer, addNote, addVehicle, balance, deliverJob, evaluateVisit, openJob, recordPayment, requestAppointment,
+  addCustomer, addNote, addVehicle, balance, deliverJob, evaluateCustomer, evaluateVisit, openJob, recordPayment, requestAppointment,
   rescheduleAppointment, suggestedNextService, technicians, updateCustomer, updateVehicle, upsertLine, type CustomerInput, type VehicleInput,
 } from '@/lib/commands';
 import { addDays, hhmm, minutes, money, moneyInput, parseMoney, parseQty, qtyText, today, uid } from '@/lib/format';
@@ -29,7 +30,7 @@ export function CustomerForm({ open, onClose, customer, onSaved }: { open: boole
       <div className="grid-2">
         <Field label={kind === 'Kurumsal' ? 'Firma unvanı' : 'Ad soyad'} wide><input name="name" required minLength={3} maxLength={120} defaultValue={customer?.name} /></Field>
         <Field label="Telefon"><input name="phone" type="tel" required maxLength={20} placeholder="0555 123 45 67" defaultValue={customer?.phone} /></Field>
-        <Field label="E-posta"><input name="email" type="email" maxLength={120} defaultValue={customer?.email} /></Field>
+        <Field label="E-posta" hint="Müşteri portalı ve şifre e-postası için"><input name="email" type="email" required maxLength={120} defaultValue={customer?.email} /></Field>
         <Field label={kind === 'Kurumsal' ? 'Vergi no' : 'T.C. kimlik no (isteğe bağlı)'}><input name="taxNo" inputMode="numeric" maxLength={11} defaultValue={customer?.taxNo} required={kind === 'Kurumsal'} /></Field>
         <Field label="İletişim tercihi"><select name="preference" defaultValue={customer?.preference ?? 'Telefon'}><option>Telefon</option><option>SMS</option><option>E-posta</option></select></Field>
         <Field label="Adres" wide><textarea name="address" rows={2} maxLength={300} defaultValue={customer?.address} /></Field>
@@ -106,35 +107,8 @@ export function AppointmentForm({ open, onClose, preset, editing, portal }: { op
 }
 
 /* ───────── Araç kabul ───────── */
-const zones: { id: string; d: string; label: string }[] = [
-  { id: 'Ön tampon', label: 'Ön tampon', d: 'M60 12h80v18H60z' },
-  { id: 'Kaput', label: 'Kaput', d: 'M58 32h84v52H58z' },
-  { id: 'Ön cam', label: 'Ön cam', d: 'M62 86h76v18H62z' },
-  { id: 'Tavan', label: 'Tavan', d: 'M62 106h76v74H62z' },
-  { id: 'Arka cam', label: 'Arka cam', d: 'M62 182h76v16H62z' },
-  { id: 'Bagaj', label: 'Bagaj', d: 'M58 200h84v40H58z' },
-  { id: 'Arka tampon', label: 'Arka tampon', d: 'M60 242h80v18H60z' },
-  { id: 'Sol ön çamurluk', label: 'Sol ön çamurluk', d: 'M30 32h26v62H30z' },
-  { id: 'Sol ön kapı', label: 'Sol ön kapı', d: 'M30 96h26v56H30z' },
-  { id: 'Sol arka kapı', label: 'Sol arka kapı', d: 'M30 154h26v46H30z' },
-  { id: 'Sol arka çamurluk', label: 'Sol arka çamurluk', d: 'M30 202h26v40H30z' },
-  { id: 'Sağ ön çamurluk', label: 'Sağ ön çamurluk', d: 'M144 32h26v62h-26z' },
-  { id: 'Sağ ön kapı', label: 'Sağ ön kapı', d: 'M144 96h26v56h-26z' },
-  { id: 'Sağ arka kapı', label: 'Sağ arka kapı', d: 'M144 154h26v46h-26z' },
-  { id: 'Sağ arka çamurluk', label: 'Sağ arka çamurluk', d: 'M144 202h26v40h-26z' },
-];
-export function DamageMap({ damages, onToggle, readOnly }: { damages: Damage[]; onToggle?: (area: string) => void; readOnly?: boolean }) {
-  return <svg viewBox="0 0 200 272" className="damage-map" role="group" aria-label="Kaporta hasar haritası">
-    <rect x="28" y="8" width="144" height="256" rx="34" className="dm-body" />
-    {zones.map(z => {
-      const marked = damages.some(d => d.area === z.id);
-      return <path key={z.id} d={z.d} className={'dm-zone ' + (marked ? 'marked' : '') + (readOnly ? ' ro' : '')} tabIndex={readOnly ? -1 : 0} role={readOnly ? undefined : 'button'} aria-label={z.label + (marked ? ' – hasar işaretli' : '')}
-        onClick={() => !readOnly && onToggle?.(z.id)} onKeyDown={e => { if (!readOnly && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onToggle?.(z.id) } }}><title>{z.label}</title></path>;
-    })}
-    <text x="100" y="6" textAnchor="middle" className="dm-label">ÖN</text>
-    <text x="100" y="271" textAnchor="middle" className="dm-label">ARKA</text>
-  </svg>;
-}
+export { DamageMap } from './car-art';
+
 export function FuelGauge({ value }: { value: number }) {
   return <span className="fuel-gauge" aria-label={`Yakıt ${value}/8`}>{Array.from({ length: 8 }, (_, i) => <i key={i} className={i < value ? 'on' : ''} />)}<small>{value}/8</small></span>;
 }
@@ -277,16 +251,17 @@ export function NoteForm({ open, onClose, customerId }: { open: boolean; onClose
 }
 
 /* ───────── Ziyaret değerlendirmesi ───────── */
-export function EvaluationForm({ open, onClose, job }: { open: boolean; onClose: () => void; job: Job }) {
+export function EvaluationForm({ open, onClose, job, customerId }: { open: boolean; onClose: () => void; job?: Job; customerId?: string }) {
   const { state, run } = useApp();
   const { error, busy, submit } = useFormRunner();
-  const current = state.evaluations.find(e => e.jobId === job.id);
+  const targetId = job?.customerId ?? customerId;
+  const current = state.evaluations.find(e => job ? e.jobId === job.id : e.customerId === targetId && !e.jobId);
   const [v, setV] = useState({ punctuality: current?.punctuality ?? 0, payment: current?.payment ?? 0, communication: current?.communication ?? 0 });
   const crit: [keyof typeof v, string, string][] = [['punctuality', 'Randevuya uyum', 'Zamanında geldi mi, iptal/erteleme bildirdi mi'], ['payment', 'Ödeme düzeni', 'Ödemeyi zamanında ve sorunsuz yaptı mı'], ['communication', 'İletişim / işbirliği', 'Onaylara ve aramalara dönüş']];
-  return <Modal open={open} onClose={onClose} title="Ziyaret değerlendirmesi" sub={`${job.no} · yalnız yetkili personel görür, fiyat veya hizmet kararı üretmez`} width={540}>
+  return <Modal open={open} onClose={onClose} title={job ? 'Ziyaret değerlendirmesi' : 'Müşteri değerlendirmesi'} sub={`${job?.no ?? 'Genel müşteri ilişkisi'} · yalnız yetkili personel görür, fiyat veya hizmet kararı üretmez`} width={540}>
     <form className="form" onSubmit={e => {
       e.preventDefault(); const f = new FormData(e.currentTarget);
-      submit(() => run((s, a) => evaluateVisit(s, a, { jobId: job.id, ...v, reason: str(f, 'reason') }), current ? 'Ziyaret değerlendirmesi güncellendi' : 'Ziyaret değerlendirildi', job.no), onClose);
+      submit(() => run((s, a) => job ? evaluateVisit(s, a, { jobId: job.id, ...v, reason: str(f, 'reason') }) : evaluateCustomer(s, a, { customerId: targetId!, ...v, reason: str(f, 'reason') }), 'Müşteri değerlendirmesi kaydedildi', job?.no), onClose);
     }}>
       <FormError error={error} />
       {crit.map(([k, label, hint]) => <div key={k} className="rate-row"><div><strong>{label}</strong><small>{hint}</small></div>

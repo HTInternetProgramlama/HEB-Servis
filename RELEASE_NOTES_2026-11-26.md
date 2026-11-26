@@ -1,0 +1,20 @@
+# HEB Servis — 26 Kasım 2026
+
+Bu geliştirme turu ana `uygulama` projesinde yapıldı. Önceki tasarım karşılaştırma klasörleri korunur.
+
+## Kullanım
+
+- **Stok takibi:** Menüden stok kartı açın; başlangıç miktarını giriş hareketiyle kaydedin. Çıkışı iş emrine bağlayabilirsiniz. Minimum stok uyarısı ve hareket geçmişi bulunur. Miktarlar yüzde birlik tam sayı tutulur. Negatif stok ve geçmiş hareketi değiştirme engellenir; düzeltme ters hareketle yapılır. Teklifte parça eklemek stok hareketi oluşturmaz; fiilî kullanım çıkış olarak kaydedilir.
+- **Müşteri değerlendirmesi:** Müşteri kartından araç veya iş emri gerektirmeden değerlendirme eklenebilir. Servis ziyareti tüm durumlarda değerlendirilebilir. Randevuya uyum, ödeme ve iletişim yıldızları ile açıklama yalnız yetkili personele açıktır.
+- **Teknisyen başarıları:** Yönetici kalite, dakiklik, işbirliği veya ustalık rozeti; gerekçe ve isteğe bağlı ödül kaydeder. İş emrine bağlanabilir. Teknisyen yalnız kendi ödüllerini görür.
+- **Müşteri portalı:** Müşterinin e-postasını ve araçlarını kaydedin. Müşteri kartındaki “Hesabı aç ve e-posta gönder” düğmesini kullanın. Mevcut hesap için şifre e-postası yeniden gönderilebilir. Gönderim geçmişi aynı karttadır. Müşteri `/giris` ekranındaki Müşteri sekmesinden giriş yapar.
+- **Şifre oluşturma:** Supabase Auth e-postasındaki bağlantı `/erisim` sayfasını açar. Müşteri en az 10 karakterli şifre belirler. Parola veya erişim bağlantısı iş verisine, günlüğe ya da gönderim geçmişine kaydedilmez. E-posta sağlayıcısının kabul etmesi gelen kutusuna teslim garantisi değildir.
+- **Görseller ve takvim:** Yeni HEB amblemi, güncellenmiş marka logoları, klavye ile de kullanılabilen kaporta haritası, haftalık/günlük randevu planı ve düz fiş çıktısı eklendi.
+
+## Ortam ve yayın
+
+Yeni migration dosyalarını uygulama sürümünü yayımlamadan önce `npm run db:migrate` ile uygulayın. Mevcut kayıtlar korunur. Üretimde demo zenginleştirmeden önce yedek alın. `scripts/enrich-demo.ts` yalnız tanımlı kurgusal kayıtları zenginleştirmek içindir; veri sıfırlama aracı değildir.
+
+Supabase Auth URL ayarlarında üretim adresi ve `https://HEDEF_ADRES/erisim` yönlendirmesi izinli olmalıdır. SMTP sağlayıcısı, izinli alıcılar ve gönderim limitleri Supabase tarafında yönetilir. Varsayılan e-posta şablonunun doğrulama bağlantısı oturum tokenlarını `/erisim` fragment alanına getirir; uygulama bunları çereze aktarır ve adres çubuğundan temizler. Özel token-hash/PKCE şablonu kullanılıyorsa buna uygun callback ayrıca uyarlanmalıdır.
+
+Gerçek banka/kart tahsilatı entegrasyonu bulunmaz; tahsilat ekranı alınan ödemelerin kaydını tutar. Stok hareketi ve ödüller kalıcı PostgreSQL tablolarındadır; müşteri portalına iç notlar, müşteri puanları veya stok/ödül kayıtları gönderilmez.

@@ -1,0 +1,14 @@
+.operations { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }
+.operations label { display: inline-flex; align-items: center; gap: 8px; }
+.operations label input[type=checkbox] { width: auto; }
+.operations select { max-width: 100%; }
+.awards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(290px, 100%), 1fr)); gap: 16px; }
+.award { border: 1px solid var(--border, #e2e8f0); border-radius: 12px; padding: 20px; display: grid; gap: 10px; }
+.award p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.badge { color: #8c5b09; background: #fff4d4; border-radius: 20px; padding: 5px 12px; width: fit-content; font-weight: 700; }
+@media (max-width: 600px) {
+  .operations :global(.card-head) { flex-wrap: wrap; }
+  .operations :global(.card-head) > div { min-width: 0; max-width: 100%; }
+  .operations :global(.card-actions) { flex: 1 1 100%; }
+  .operations :global(.card-actions) select { width: 100%; min-width: 0; }
+}

@@ -13,15 +13,17 @@ export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [entry, setEntry] = useState<'staff' | 'customer'>('staff');
   useEffect(() => { if (ready && actor) router.replace(actor.role === 'customer' ? '/portal' : '/'); }, [ready, actor, router]);
   if (!ready) return <Loading />;
   return <div className="login">
     <div className="login-panel">
       <div className="row-between"><Logo /><ThemeToggle /></div>
       <div>
-        <h1>Oturum açın</h1>
-        <p className="muted mt">Personel ve müşteri hesapları aynı girişi kullanır; yetkiler rolünüze göre açılır.</p>
+        <h1>{entry === 'customer' ? 'Müşteri girişi' : 'Personel girişi'}</h1>
+        <p className="muted mt">{entry === 'customer' ? 'Araçlarınızı, servis durumunu, randevularınızı ve tekliflerinizi takip edin. Hesabınızı servis danışmanınız açar; şifrenizi e-postanıza gelen bağlantıdan belirleyin.' : 'Servis operasyonlarını ve müşteri kayıtlarını hesabınızın yetkileriyle yönetin.'}</p>
       </div>
+      <div className="seg" aria-label="Giriş türü"><button type="button" className={entry === 'staff' ? 'active' : ''} onClick={() => setEntry('staff')}>Personel</button><button type="button" className={entry === 'customer' ? 'active' : ''} onClick={() => setEntry('customer')}>Müşteri</button></div>
       <form className="form" onSubmit={async e => {
         e.preventDefault(); const f = new FormData(e.currentTarget); setBusy(true); setError('');
         const err = await login(String(f.get('email')), String(f.get('password')));

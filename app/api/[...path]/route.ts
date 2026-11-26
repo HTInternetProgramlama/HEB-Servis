@@ -4,6 +4,7 @@ import { requestAuth, type RequestAuth } from '@/lib/server/supabase';
 import { signedPhoto, uploadPhoto } from '@/lib/server/photos';
 import { aiStatus, aiUsage, assist, technicalDraft } from '@/lib/server/ai';
 import { RuleError } from '@/lib/rules';
+import { activateCustomerAccess, customerAccessStatus, sendCustomerAccess } from '@/lib/server/customer-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     if (request.method === 'GET') {
       const actor = await authenticate(auth);
       if (path === 'session') return respond(await snapshot(actor));
+      if (path === 'customer-access') return respond(await customerAccessStatus(actor, request.nextUrl.searchParams.get('customerId')));
       if (path === 'ai/usage') return respond(await aiUsage(actor));
       if (path === 'ai/status') return respond(await aiStatus(actor));
       if (path === 'photos') return respond(await signedPhoto(actor, request.nextUrl.searchParams.get('inspectionId') || ''));
@@ -39,7 +41,9 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     if (!body || typeof body !== 'object' || Array.isArray(body)) throw new ApiError(400, 'Geçersiz istek.');
     if (path === 'login') return respond(await snapshot(await login(auth, body.email, body.password)));
     if (path === 'logout') { await logout(auth); return respond({ ok: true }); }
+    if (path === 'customer-access/activate') return respond(await activateCustomerAccess(auth, body));
     const actor = await authenticate(auth);
+    if (path === 'customer-access') return respond(await sendCustomerAccess(actor, body.customerId, expectedOrigin));
     if (path === 'commands') return respond(await mutate(actor, body));
     if (path === 'ai/technical') return respond(await technicalDraft(actor, body.jobId));
     if (path === 'ai/assist') return respond(await assist(actor, body));

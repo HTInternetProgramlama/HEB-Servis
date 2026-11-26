@@ -12,18 +12,21 @@ import { confirmAppointment, findClash, resourceName, serviceName, setAppointmen
 import { addDays, fmtDate, fmtDateTime, fmtLongDate, hhmm, minutes, today, weekday } from '@/lib/format';
 import type { Appointment } from '@/lib/types';
 
-const SLOT = 30, ROW = 44;
+const SLOT = 30, ROW = 44, WEEK_ROW = 100;
 
 export default function AppointmentsPage() {
   const { state, run } = useApp();
   const router = useRouter();
   const [day, setDay] = useState(today());
+  const [view, setView] = useState<'week' | 'day'>('week');
   const [selected, setSelected] = useState<string | null>(null);
   const [form, setForm] = useState<null | { preset?: Partial<Appointment>; editing?: Appointment }>(null);
   const [intake, setIntake] = useState<Appointment | null>(null);
   useEffect(() => { const d = new URLSearchParams(location.search).get('tarih'); if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) setDay(d) }, []);
 
   const s = state.settings;
+  const weekStart = addDays(day, 1 - weekday(day));
+  const week = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const start = minutes(s.workStart), end = minutes(s.workEnd);
   const rows = Array.from({ length: (end - start) / SLOT }, (_, i) => start + i * SLOT);
   const resources = s.resources.filter(r => r.active);
@@ -39,29 +42,54 @@ export default function AppointmentsPage() {
   const capacity = end - start - (minutes(s.breakEnd) - minutes(s.breakStart));
 
   return <>
-    <PageHeader title="Randevu takvimi" sub="Servis alanlarına göre günlük plan. Onaylı randevular kapasiteyi bloke eder; talepler sağda listelenir."
+    <PageHeader title="Randevu takvimi" sub="Haftalık servis planı. Günlük görünümde servis alanlarını ve boş saatleri inceleyin."
       actions={<Button variant="primary" icon="plus" onClick={() => setForm({ preset: { date: day } })}>Yeni randevu</Button>} />
-    <div className="toolbar">
+    <div className="toolbar heb-calendar-toolbar">
+      <div className="btn-group" role="group" aria-label="Takvim görünümü"><Button variant={view === 'week' ? 'primary' : undefined} aria-pressed={view === 'week'} onClick={() => setView('week')}>Haftalık</Button><Button variant={view === 'day' ? 'primary' : undefined} aria-pressed={view === 'day'} onClick={() => setView('day')}>Günlük</Button></div>
       <div className="btn-group">
-        <Button icon="left" aria-label="Önceki gün" onClick={() => setDay(addDays(day, -1))} />
+        <Button icon="left" aria-label={view === 'week' ? 'Önceki hafta' : 'Önceki gün'} onClick={() => setDay(addDays(day, view === 'week' ? -7 : -1))} />
         <Button onClick={() => setDay(today())} disabled={day === today()}>Bugün</Button>
-        <Button icon="right" aria-label="Sonraki gün" onClick={() => setDay(addDays(day, 1))} />
+        <Button icon="right" aria-label={view === 'week' ? 'Sonraki hafta' : 'Sonraki gün'} onClick={() => setDay(addDays(day, view === 'week' ? 7 : 1))} />
       </div>
       <input type="date" value={day} onChange={e => e.target.value && setDay(e.target.value)} aria-label="Tarih seç" className="date-input" />
-      <strong className="toolbar-title">{fmtLongDate(day)}</strong>
+      <strong className="toolbar-title">{view === 'week' ? `${fmtDate(week[0], { day: 'numeric', month: 'short' })} – ${fmtDate(week[6], { day: 'numeric', month: 'long', year: 'numeric' })}` : fmtLongDate(day)}</strong>
       <div className="toolbar-end legend">
         <span><i className="lg blue" />Onaylı</span><span><i className="lg teal" />Geldi</span><span><i className="lg slate" />İş emri açıldı</span>
       </div>
     </div>
 
     <div className="schedule-layout">
-      <Card flush className="schedule-card">
+      <Card flush className="schedule-card heb-calendar">
+        {view === 'week' ? <div className="heb-week-scroll"><div className="heb-week-grid" style={{ gridTemplateColumns: '68px repeat(7, minmax(150px, 1fr))' }}>
+          <div className="heb-week-corner">SAAT</div>
+          {week.map(date => <button key={date} className={`heb-week-head ${date === today() ? 'is-today' : ''} ${date === day ? 'is-selected' : ''}`} onClick={() => { setDay(date); setView('day') }} aria-label={`${fmtLongDate(date)}, günlük görünümü aç`}>
+            <span>{fmtDate(date, { weekday: 'long' })}</span><strong>{fmtDate(date, { day: '2-digit', month: 'short' })}</strong><small>{!s.workDays.includes(weekday(date)) ? 'Servis kapalı' : `${state.appointments.filter(a => a.date === date && !['İptal', 'Gelmedi', 'Bekliyor'].includes(a.status)).length} randevu`}</small>
+          </button>)}
+          <div className="heb-week-times">{rows.map(m => <span key={m} style={{ height: WEEK_ROW }}>{hhmm(m)}</span>)}</div>
+          {week.map(date => {
+            const isClosed = !s.workDays.includes(weekday(date));
+            return <div key={date} className={`heb-week-day ${isClosed ? 'is-closed' : ''}`} style={{ height: rows.length * WEEK_ROW }}>
+              {rows.map(m => {
+                const inBreak = m >= minutes(s.breakStart) && m < minutes(s.breakEnd);
+                const past = new Date(`${date}T${hhmm(m)}:00+03:00`).getTime() < Date.now();
+                const events = state.appointments.filter(a => a.date === date && minutes(a.time) >= m && minutes(a.time) < m + SLOT && !['İptal', 'Gelmedi', 'Bekliyor'].includes(a.status));
+                return <div className={`heb-week-slot ${inBreak ? 'is-break' : ''}`} key={m} style={{ height: WEEK_ROW }}>
+                  <button className="heb-week-add" disabled={isClosed || inBreak || past || !resources.length} aria-label={`${fmtLongDate(date)} ${hhmm(m)} için randevu oluştur`} onClick={() => setForm({ preset: { date, time: hhmm(m), resourceId: resources[0]?.id } })}>{inBreak && m === minutes(s.breakStart) ? 'Öğle arası' : ''}</button>
+                  {events.map(a => <button key={a.id} className={`heb-week-event ${a.status === 'Geldi' ? 'teal' : a.status === 'İş emri açıldı' ? 'slate' : 'blue'} ${selected === a.id ? 'sel' : ''}`} onClick={() => { setSelected(a.id); setDay(date) }}>
+                    <span>{a.time}–{hhmm(minutes(a.time) + a.duration)}</span><strong>{v(a.vehicleId)?.plate ?? a.no}</strong><small>{resourceName(state, a.resourceId)} · {serviceName(state, a.serviceId)}</small>
+                  </button>)}
+                </div>;
+              })}
+            </div>;
+          })}
+        </div></div> : <>
+        <div className="heb-day-title"><strong>{fmtLongDate(day)}</strong><span>Servis alanlarına göre günlük görünüm</span></div>
         {closedDay ? <Empty icon="calendar" title="Servis bu gün kapalı">Çalışma günleri ayarlardan değiştirilebilir.</Empty> :
           <div className="schedule-scroll">
-            <div className="schedule" style={{ gridTemplateColumns: `56px repeat(${resources.length}, minmax(150px, 1fr))` }}>
+            <div className="schedule" style={{ gridTemplateColumns: `68px repeat(${resources.length}, minmax(150px, 1fr))` }}>
               <div className="sch-corner" />
               {occupancy.map(({ r, used }) => <div key={r.id} className="sch-head"><strong>{r.name}</strong><small>Doluluk %{Math.round(used / capacity * 100)}</small></div>)}
-              <div className="sch-times">{rows.map(m => <span key={m} style={{ height: ROW }}>{m % 60 === 0 ? hhmm(m) : ''}</span>)}</div>
+              <div className="sch-times">{rows.map(m => <span key={m} style={{ height: ROW }}>{hhmm(m)}</span>)}</div>
               {resources.map(r => <div key={r.id} className="sch-col" style={{ height: rows.length * ROW }}>
                 {rows.map(m => {
                   const inBreak = m >= minutes(s.breakStart) && m < minutes(s.breakEnd);
@@ -82,7 +110,7 @@ export default function AppointmentsPage() {
                 {day === today() && nowMin > start && nowMin < end && <div className="sch-now" style={{ top: (nowMin - start) / SLOT * ROW }} />}
               </div>)}
             </div>
-          </div>}
+          </div>}</>}
       </Card>
 
       <div className="schedule-side">

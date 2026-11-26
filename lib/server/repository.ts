@@ -4,7 +4,7 @@ import type { State } from '../types';
 import { fail } from './errors';
 
 // These tables are the persistence model. No application-state JSON column exists.
-const tables = ['settings', 'resources', 'catalog_items', 'service_types', 'customers', 'profiles', 'vehicles', 'service_type_items', 'appointments', 'jobs', 'job_status_events', 'inspections', 'estimates', 'estimate_lines', 'payments', 'customer_notes', 'customer_note_revisions', 'visit_evaluations', 'reminder_logs', 'audit_log'] as const;
+const tables = ['settings', 'resources', 'catalog_items', 'service_types', 'customers', 'profiles', 'vehicles', 'service_type_items', 'appointments', 'jobs', 'job_status_events', 'inspections', 'estimates', 'estimate_lines', 'payments', 'customer_notes', 'customer_note_revisions', 'visit_evaluations', 'stock_items', 'stock_movements', 'technician_awards', 'reminder_logs', 'audit_log'] as const;
 type Table = typeof tables[number];
 // pg's JSON result is decoded and checked against the schema by PostgreSQL.
 type Row = Record<string, any>;
@@ -57,7 +57,10 @@ export function flattenState(state: State): Rows {
     put('customer_notes', { id: n.id, customer_id: n.customerId, job_id: n.jobId || null, category: n.category, text: n.text, at: n.at, by: who(n.by), by_name: n.by });
     n.revisions.forEach((r, index) => put('customer_note_revisions', { id: stableUuid(`${n.id}:revision:${index}`), note_id: n.id, previous_text: r.text, at: r.at, by: who(r.by), by_name: r.by }));
   });
-  state.evaluations.forEach(e => put('visit_evaluations', { id: e.id, job_id: e.jobId, customer_id: e.customerId, punctuality: e.punctuality, payment: e.payment, communication: e.communication, reason: e.reason, at: e.at, by: who(e.by), by_name: e.by }));
+  state.evaluations.forEach(e => put('visit_evaluations', { id: e.id, job_id: e.jobId || null, customer_id: e.customerId, punctuality: e.punctuality, payment: e.payment, communication: e.communication, reason: e.reason, at: e.at, by: who(e.by), by_name: e.by }));
+  (state.stockItems ?? []).forEach(i => put('stock_items', { id: i.id, code: i.code, name: i.name, unit: i.unit, minimum: i.minimum, active: i.active }));
+  (state.stockMovements ?? []).forEach(m => put('stock_movements', { id: m.id, item_id: m.itemId, kind: m.kind, quantity: m.quantity, reason: m.reason, job_id: m.jobId || null, at: m.at, by: who(m.by), by_name: m.by }));
+  (state.technicianAwards ?? []).forEach(a => put('technician_awards', { id: a.id, technician_id: a.technicianId, badge: a.badge, title: a.title, reason: a.reason, reward: a.reward, job_id: a.jobId || null, at: a.at, by: who(a.by), by_name: a.by }));
   state.reminders.forEach(r => put('reminder_logs', { id: r.id, vehicle_id: r.vehicleId, result: r.result, note: r.note, at: r.at, by: who(r.by), by_name: r.by }));
   state.audit.forEach(a => put('audit_log', { id: a.id, at: a.at, by: who(a.by), by_name: a.by, role: a.role, action: a.action, ref: a.ref || null }));
   return result;
@@ -92,7 +95,10 @@ export async function readRelationalState(client: PoolClient): Promise<{ state: 
       payments: d.payments.filter(p => p.job_id === r.id).map(p => ({ id: p.id, key: p.idempotency_key, amount: p.amount, method: p.method, note: empty(p.note), at: iso(p.at)!, by: p.by_name })),
     })),
     notes: d.customer_notes.map(n => ({ id: n.id, customerId: n.customer_id, jobId: n.job_id ?? undefined, category: n.category, text: n.text, at: iso(n.at)!, by: n.by_name, revisions: d.customer_note_revisions.filter(r => r.note_id === n.id).map(r => ({ text: r.previous_text, at: iso(r.at)!, by: r.by_name })) })),
-    evaluations: d.visit_evaluations.map(e => ({ id: e.id, customerId: e.customer_id, jobId: e.job_id, punctuality: e.punctuality, payment: e.payment, communication: e.communication, reason: e.reason, at: iso(e.at)!, by: e.by_name })),
+    evaluations: d.visit_evaluations.map(e => ({ id: e.id, customerId: e.customer_id, jobId: e.job_id ?? '', punctuality: e.punctuality, payment: e.payment, communication: e.communication, reason: e.reason, at: iso(e.at)!, by: e.by_name })),
+    stockItems: d.stock_items.map(i => ({ id: i.id, code: i.code, name: i.name, unit: i.unit, minimum: i.minimum, active: i.active })),
+    stockMovements: d.stock_movements.map(m => ({ id: m.id, itemId: m.item_id, kind: m.kind, quantity: m.quantity, reason: m.reason, jobId: m.job_id ?? undefined, at: iso(m.at)!, by: m.by_name })),
+    technicianAwards: d.technician_awards.map(a => ({ id: a.id, technicianId: a.technician_id, badge: a.badge, title: a.title, reason: a.reason, reward: a.reward, jobId: a.job_id ?? undefined, at: iso(a.at)!, by: a.by_name })),
     reminders: d.reminder_logs.map(r => ({ id: r.id, vehicleId: r.vehicle_id, result: r.result, note: empty(r.note), at: iso(r.at)!, by: r.by_name })),
     audit: d.audit_log.map(a => ({ id: a.id, at: iso(a.at)!, by: a.by_name, role: a.role, action: a.action, ref: a.ref ?? undefined })),
     catalog: d.catalog_items.map(c => ({ id: c.id, kind: c.kind, code: c.code, name: c.name, unit: c.unit, unitPrice: c.unit_price, active: c.active })),

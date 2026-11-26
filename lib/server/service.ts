@@ -47,6 +47,8 @@ export function visibleState(s: State, a: Actor): State {
     vehicles: s.vehicles.filter(v => a.role === 'customer' ? v.customerId === a.customerId : vehicleIds.has(v.id)),
     appointments: a.role === 'customer' ? s.appointments.filter(x => x.customerId === a.customerId) : [],
     jobs, notes: [], evaluations: [], catalog: [], reminders: [], audit: [],
+    stockItems: [], stockMovements: [],
+    technicianAwards: a.role === 'technician' ? (s.technicianAwards ?? []).filter(x => x.technicianId === a.userId) : [],
   };
 }
 export async function snapshot(a: Actor) {
