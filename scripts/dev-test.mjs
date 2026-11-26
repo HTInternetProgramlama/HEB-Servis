@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 
 const env = { ...process.env };
+// Keep test hot reload and generated files separate from normal dev/production builds.
+env.HEB_TEST_OUTPUT = '1';
 for (const line of readFileSync('.env.test.local', 'utf8').split(/\r?\n/)) {
   const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
   if (m) env[m[1]] = m[2].startsWith('"') ? JSON.parse(m[2]) : m[2];

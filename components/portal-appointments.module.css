@@ -66,7 +66,34 @@
 .cancelDialog { display: grid; gap: 12px; }
 .cancelDialog p { line-height: 1.7; }
 .error { color: #a22d1c; background: #fff0ed; padding: 10px; border-radius: 8px; font-size: 13px; }
+.filterBar { display: grid; grid-template-columns: minmax(180px,1.6fr) repeat(2,minmax(145px,1fr)) auto; gap: 14px; align-items: end; padding: 18px; border: 1px solid var(--pa-line); border-radius: 14px; background: #fff; min-width: 0; }
+.searchField, .dateField { display: grid; gap: 7px; min-width: 0; font-size: 11px; font-weight: 650; color: #43526a; }
+.searchInput { display: flex; align-items: center; gap: 8px; min-width: 0; border: 1px solid #ccd5e0; border-radius: 8px; padding-left: 11px; background: #fff; color: #708096; }
+.searchInput input { min-width: 0; width: 100%; border: 0; background: transparent; padding: 11px 10px 11px 0; height: 42px; font-size: 13px; font-weight: 400; color: var(--pa-ink); border-radius: 8px; }
+.searchInput:focus-within { outline: 2px solid #cf590f; outline-offset: 2px; }
+.searchInput input:focus-visible { outline: none; }
+.searchInput input::placeholder { color: #6e7b8d; opacity: 1; font-size: 12px; }
+.dateField input { width: 100%; min-width: 0; max-width: 100%; height: 42px; border: 1px solid #ccd5e0; border-radius: 8px; padding: 8px; background: #fff; color: var(--pa-ink); font-size: 12px; color-scheme: light; }
+.dateField input:focus-visible { outline: 2px solid #cf590f; outline-offset: 2px; }
+.dateField input[aria-invalid="true"] { border-color: #ad3723; }
+.clearFilters { min-height: 42px; padding: 9px 12px; border: 1px solid #eadbd2; background: #fff7f0; color: #963d16; font-size: 11px; font-weight: 650; border-radius: 8px; white-space: nowrap; }
+.clearFilters:hover:not(:disabled) { background: #ffe9d7; border-color: #ce9d80; }
+.clearFilters:disabled { opacity: .55; cursor: default; }
+.rangeError { grid-column: 1 / -1; font-size: 12px; color: #a22d1c; line-height: 1.6; }
+.jobSummary { display: grid; gap: 7px; padding: 12px 14px; border: 1px solid #e4eaf2; border-radius: 10px; background: #f7f9fc; }
+.jobSummary > div { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 12px; }
+.jobSummary strong { font-size: 12px; color: var(--pa-ink); font-weight: 700; overflow-wrap: anywhere; }
+.jobSummary span { font-size: 11px; color: #5c6d83; }
+.jobSummary p { font-size: 12px; color: #53647a; line-height: 1.6; }
+.jobSummary a { display: inline-flex; align-items: center; gap: 4px; justify-self: start; min-height: 32px; color: #a93b09; font-size: 11px; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
+.detailLink { display: inline-flex; align-items: center; justify-content: center; justify-self: start; gap: 16px; min-height: 42px; padding: 10px 15px; border: 1px solid #e4a77f; border-radius: 8px; background: #fff3e9; color: #9c3509; font-size: 12px; font-weight: 750; text-decoration: none; }
+.detailLink:hover { text-decoration: none; color: #852900; border-color: #cb783f; background: #ffe7d4; }
 .page button:focus-visible, .page a:focus-visible, .panel:focus-visible { outline: 3px solid #cf590f; outline-offset: 3px; }
+@media (max-width: 980px) {
+  .filterBar { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .searchField { grid-column: 1 / -1; }
+  .clearFilters { grid-column: 1 / -1; justify-self: start; }
+}
 @media (max-width: 600px) {
   .page { gap: 20px; }
   .header { align-items: flex-start; gap: 16px; }
@@ -96,4 +123,9 @@
   .cancel { text-align: center; width: 100%; }
   .empty { padding: 38px 18px; }
   .empty h2 { font-size: 19px; }
+  .filterBar { gap: 12px; padding: 14px; }
+  .searchInput input { font-size: 16px; }
+  .dateField input { font-size: 12px; padding: 6px; }
+  .detailLink { width: 100%; justify-content: space-between; gap: 8px; padding: 10px 11px; }
+  .jobSummary { padding: 10px; }
 }

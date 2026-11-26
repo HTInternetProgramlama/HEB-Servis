@@ -4,6 +4,10 @@ Bu geliştirme turu ana `uygulama` projesinde yapıldı. Önceki tasarım karş�
 
 ## Müşteri portalı tasarım turu
 
+Geçmiş randevular artık karttaki ayrıntı bağlantısından açılır. Tarih aralığı ve araç/hizmet aramasıyla kayıtlar bulunabilir; Geçmiş görünümü doğrudan `/portal/randevular?gorunum=gecmis` adresiyle paylaşılabilir. Detayda kayıtlı talep, araç ve randevu bilgileri; varsa randevuya bağlı servis, müşteriye paylaşılan kontrol bulguları, teklif sürümleri ve ödeme hareketleri gösterilir. İş emrine dönüşmemiş randevu için servis veya ödeme geçmişi üretilmez. Randevu durumlarının değişiklik tarihleri ayrı saklanmadığından böyle bir zaman çizelgesi uydurulmaz.
+
+Yerel `dev:test` sunucusu test derleme çıktısını `.next-test` altında tutar; normal geliştirme/yayın `.next` kullanır. Gerekirse `PORT` ile ayrı test portu seçilir. `scripts/enrich-appointment-history.ts` iki kurgusal ders hesabına geçmiş randevu/servis örnekleri ekler; varsayılan önizleme, uygulama için `--apply`, bulutta ayrıca `--allow-cloud` gerekir. Mevcut kayıtları değiştirmez ve tekrar çalıştırıldığında çoğaltmaz.
+
 Müşteri ana sayfası kişisel araç ve servis paneli olarak yenilendi. Araçlar, aktif servisler, onay bekleyen teklifler, randevular, bakım planları ve ödeme özeti mevcut kayıtlardan oluşturulur. Randevu ekranı yaklaşan ve geçmiş kayıtları ayrı gösterir. Servis detayında araç özeti, dört adımlı ilerleme, durum geçmişi, kontrol bulguları ve ödeme hareketleri birlikte sunulur. Telefon ve firma bilgileri servis ayarlarından gelir. Müşteriye iç not, değerlendirme veya personel ödülü açılmaz.
 
 ## Kullanım
