@@ -2,6 +2,10 @@
 
 Bu geliştirme turu ana `uygulama` projesinde yapıldı. Önceki tasarım karşılaştırma klasörleri korunur.
 
+## Müşteri portalı tasarım turu
+
+Müşteri ana sayfası kişisel araç ve servis paneli olarak yenilendi. Araçlar, aktif servisler, onay bekleyen teklifler, randevular, bakım planları ve ödeme özeti mevcut kayıtlardan oluşturulur. Randevu ekranı yaklaşan ve geçmiş kayıtları ayrı gösterir. Servis detayında araç özeti, dört adımlı ilerleme, durum geçmişi, kontrol bulguları ve ödeme hareketleri birlikte sunulur. Telefon ve firma bilgileri servis ayarlarından gelir. Müşteriye iç not, değerlendirme veya personel ödülü açılmaz.
+
 ## Kullanım
 
 - **Stok takibi:** Menüden stok kartı açın; başlangıç miktarını giriş hareketiyle kaydedin. Çıkışı iş emrine bağlayabilirsiniz. Minimum stok uyarısı ve hareket geçmişi bulunur. Miktarlar yüzde birlik tam sayı tutulur. Negatif stok ve geçmiş hareketi değiştirme engellenir; düzeltme ters hareketle yapılır. Teklifte parça eklemek stok hareketi oluşturmaz; fiilî kullanım çıkış olarak kaydedilir.
