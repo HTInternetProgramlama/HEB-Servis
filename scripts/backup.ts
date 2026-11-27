@@ -5,7 +5,7 @@ import { db, readState } from '../lib/server/database';
 import { supabaseAdmin } from '../lib/server/supabase';
 loadConfig();
 export async function backup() {
-  const { state, revision } = await readState();
+  const { state, revision } = await readState(undefined, { fullAudit: true });
   const directory = path.resolve('backups', `postgres-${new Date().toISOString().replace(/[:.]/g, '-')}`);
   mkdirSync(path.join(directory, 'photos'), { recursive: true });
   const photos = state.jobs.flatMap(j => j.inspections.flatMap(i => i.photoPath ? [i.photoPath] : []));

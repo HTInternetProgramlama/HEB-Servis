@@ -36,7 +36,7 @@ async function main() {
   await backup();
   await transaction(async client => {
     await client.query('select id from app_control where id=1 for update');
-    const before = await readState(client);
+    const before = await readState(client, { fullAudit: true });
     // Maintenance-only, transactional trigger suspension. A rollback restores the trigger.
     // Foreign keys, CHECK constraints and RLS stay enabled throughout.
     await client.query('alter table estimate_lines disable trigger estimate_lines_locked');

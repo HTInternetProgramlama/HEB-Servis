@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { Actor, State } from '@/lib/types';
 import { collect, replay } from '@/lib/commands';
+import { guardsFor } from '@/lib/entity-guard';
 
 interface Snapshot { state: State; actor: Actor; revision: number }
 interface Toast { id: number; text: string; tone: 'ok' | 'error' }
@@ -77,7 +78,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const commands = collect(change, start.state, start.actor);
       if (!commands.length) return null;
-      const response = await fetch('/api/commands', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commands, revision: start.revision, key: crypto.randomUUID(), message, ref }) });
+      const response = await fetch('/api/commands', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commands, revision: start.revision, guards: guardsFor(commands, start.state), key: crypto.randomUUID(), message, ref }) });
       const data = await response.json();
       if (started !== generation.current) return 'Oturum değişti. İşlem durumunu yeniden giriş yaparak kontrol edin.';
       if (!response.ok) {

@@ -66,8 +66,11 @@ export function flattenState(state: State): Rows {
   return result;
 }
 
-export async function readRelationalState(client: PoolClient): Promise<{ state: State; revision: number }> {
-  const fragments = tables.map(t => `'${t}',(select coalesce(jsonb_agg(t order by ${t === 'audit_log' ? 'at desc,id' : 'position'}),'[]'::jsonb) from ${t} t)`);
+/** Uygulama ekranları için işlem günlüğünün son kayıtları; tam geçmiş veritabanında kalır, yedek tamamını alır. */
+export const AUDIT_WINDOW = 1000;
+export async function readRelationalState(client: Pick<PoolClient, "query">, options: { fullAudit?: boolean } = {}): Promise<{ state: State; revision: number }> {
+  const auditSource = options.fullAudit ? 'audit_log' : `(select * from audit_log order by at desc, id limit ${AUDIT_WINDOW})`;
+  const fragments = tables.map(t => `'${t}',(select coalesce(jsonb_agg(t order by ${t === 'audit_log' ? 'at desc,id' : 'position'}),'[]'::jsonb) from ${t === 'audit_log' ? auditSource : t} t)`);
   const { rows } = await client.query(`select jsonb_build_object(${fragments.join(',')},'control',(select to_jsonb(c) from app_control c where id=1)) as data`);
   const d = rows[0].data as Rows & { control: Row };
   const co = d.control; const s = d.settings[0];
@@ -118,6 +121,7 @@ export async function writeRelationalState(client: PoolClient, before: State | n
   for (const table of [...tables].reverse()) {
     const desired = new Set(rows[table].map(r => key(table, r)));
     for (const row of old[table]) if (!desired.has(key(table, row))) {
+      if (table === 'audit_log') continue; // Denetim kaydı yalnız eklenir; bellekteki 1000 kayıt sınırı veritabanından silme sayılmaz.
       if (table === 'service_type_items') await client.query('delete from service_type_items where service_type_id=$1 and catalog_item_id=$2', [row.service_type_id, row.catalog_item_id]);
       else await client.query(`delete from ${table} where id=$1`, [row.id]);
     }

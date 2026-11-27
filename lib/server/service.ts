@@ -3,6 +3,8 @@ import type { PoolClient } from 'pg';
 import { db, readState, transaction, writeState } from './database';
 import * as rules from '../rules';
 import { commandArity, type Command } from '../command-list';
+import { AUDIT_WINDOW } from './repository';
+import { appendOnlyCommands, commandTargets, fingerprint, overwriteCommands } from '../entity-guard';
 import type { Actor, State, User } from '../types';
 import { validCommand } from './validation';
 import { ApiError, fail } from './errors';
@@ -37,7 +39,13 @@ export function visibleState(s: State, a: Actor): State {
   if (a.role === 'advisor') return { ...s, audit: [] };
   let jobs = s.jobs;
   if (a.role === 'customer') jobs = rules.portalView(s, a).jobs.map(j => ({ ...j, payments: j.payments.map(p => ({ ...p, note: '', key: '' })), history: j.history.map(h => ({ ...h, note: '' })), deliveryNote: '' }));
-  else jobs = jobs.filter(j => j.technicianId === a.userId).map(j => ({ ...j, payments: [] }));
+  // Teknisyen: yalnız atandığı işler. Ödeme, teslim/bakiye açıklaması, müşteri görüşme notu ve teklif taslağı içeriği gönderilmez.
+  else jobs = jobs.filter(j => j.technicianId === a.userId).map(j => ({
+    ...j, payments: [], deliveryNote: '',
+    history: j.history.map(h => h.status === 'Teslim edildi' ? { ...h, note: '' } : h),
+    // Taslak sürüm görünür kalır (durum düğmeleri doğru çalışsın) ama kalemleri ve notu gönderilmez.
+    estimates: j.estimates.map(e => e.status === 'Taslak' ? { ...e, lines: [], note: '' } : { ...e, decision: e.decision && { ...e.decision, note: '' } }),
+  }));
   const customerIds = new Set(jobs.map(j => j.customerId));
   const vehicleIds = new Set(jobs.map(j => j.vehicleId));
   return { ...s, seq: { customer: 0, appointment: 0, job: 0 },
@@ -58,7 +66,27 @@ export async function snapshot(a: Actor) {
   const actor: Actor = { userId: user.id, name: user.name, role: user.role, customerId: user.customerId };
   return { state: visibleState(state, actor), revision, actor };
 }
-export async function mutate(identity: Actor, body: { commands?: unknown; revision?: unknown; key?: unknown; message?: unknown; ref?: unknown }) {
+/**
+ * Eski revizyonla gelen komut ne zaman en güncel kayda uygulanabilir?
+ * - Üzerine yazan düzenlemeler: asla (409).
+ * - İş emri/randevu komutları: yalnız hedef kayıt, kullanıcının gördüğü haliyle aynıysa.
+ * - Yalnız ekleme yapan komutlar: her zaman; iş kuralları güncel veride yeniden çalışır.
+ * Sınıflandırılmamış yeni bir komut güvenli tarafta kalır ve 409 alır.
+ */
+export function staleConflict(c: Command, guards: Record<string, string>, view: State): string | null {
+  if (overwriteCommands.has(c.name)) return 'Düzenlediğiniz kayıt başka bir kullanıcı tarafından değiştirildi. Sayfa güncellendi; değişikliği kontrol edip yeniden kaydedin.';
+  if (appendOnlyCommands.has(c.name)) return null;
+  const targets = commandTargets(c);
+  if (!targets.length && c.name !== 'openJob') return 'Kayıtlar başka bir işlemle değişti. Sayfa güncellendi; işlemi yeniden deneyin.';
+  for (const t of targets) if (guards[t.key] !== fingerprint(view, t)) return t.kind === 'job'
+    ? 'İşlem yaptığınız iş emri bu arada başka bir kullanıcı tarafından değiştirildi. Sayfa güncellendi; güncel durumu kontrol edip yeniden deneyin.'
+    : 'İşlem yaptığınız randevu bu arada değiştirildi. Sayfa güncellendi; güncel durumu kontrol edip yeniden deneyin.';
+  return null;
+}
+const validGuards = (g: unknown): g is Record<string, string> => g === undefined || (!!g && typeof g === 'object' && !Array.isArray(g) && Object.keys(g).length <= 100 && Object.entries(g).every(([k, v]) => k.length <= 80 && typeof v === 'string' && v.length <= 40));
+export async function mutate(identity: Actor, body: { commands?: unknown; revision?: unknown; key?: unknown; message?: unknown; ref?: unknown; guards?: unknown }) {
+  if (!validGuards(body.guards)) return fail(400, 'Geçersiz işlem isteği.');
+  const guards = (body.guards ?? {}) as Record<string, string>;
   if (!Array.isArray(body.commands) || body.commands.length < 1 || body.commands.length > 50 || typeof body.key !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.key) || !Number.isSafeInteger(body.revision)) return fail(400, 'Geçersiz işlem isteği.');
   const commands = body.commands as Command[];
   for (const c of commands) {
@@ -79,7 +107,10 @@ export async function mutate(identity: Actor, body: { commands?: unknown; revisi
         if (done.user_id !== actor.userId || done.fingerprint !== fingerprint) return fail(409, 'İşlem anahtarı daha önce kullanılmış.');
         return;
       }
-      if (current.revision !== body.revision) return fail(409, 'Kayıtlar başka bir işlemle değişti. Sayfa güncellendi; işlemi yeniden deneyin.');
+      if (current.revision !== body.revision) {
+        const view = visibleState(current.state, actor);
+        for (const c of commands) { const conflict = staleConflict(c, guards, view); if (conflict) return fail(409, conflict); }
+      }
       let next = current.state;
       for (const c of commands) {
         const fn = rules[c.name] as unknown as (s: State, a: Actor, ...args: unknown[]) => State;
@@ -105,7 +136,7 @@ export async function mutate(identity: Actor, body: { commands?: unknown; revisi
         }
       }
       const message = typeof body.message === 'string' ? body.message.slice(0, 300) : 'İşlem kaydedildi';
-      next = { ...next, audit: [{ id: randomUUID(), at: new Date().toISOString(), by: actor.name, role: actor.role, action: `${commands.map(c => c.name).join(', ')}: ${message}`, ref: typeof body.ref === 'string' ? body.ref.slice(0, 80) : undefined }, ...next.audit].slice(0, 1000) };
+      next = { ...next, audit: [{ id: randomUUID(), at: new Date().toISOString(), by: actor.name, role: actor.role, action: `${commands.map(c => c.name).join(', ')}: ${message}`, ref: typeof body.ref === 'string' ? body.ref.slice(0, 80) : undefined }, ...next.audit].slice(0, AUDIT_WINDOW) };
       await writeState(client, current.state, next, current.revision + 1);
       await client.query('insert into operation_keys(key,user_id,fingerprint,revision) values($1,$2,$3,$4)', [body.key, actor.userId, fingerprint, current.revision + 1]);
     });

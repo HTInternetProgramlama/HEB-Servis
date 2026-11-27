@@ -61,15 +61,26 @@ Müşteriler, araçlar, profiller, servis alanları, randevular, iş emirleri, d
 
 `lib/server/repository.ts` ilişkisel kayıtlar ile arayüzün TypeScript modeli arasındaki dönüşümü yapar. `lib/server/database.ts` parametreli sorguları ve transaction'ları yönetir. İş kuralları `lib/rules.ts` içinde korunur ve sunucuda çalıştırılır.
 
-Her yazma, `app_control` satırını `FOR UPDATE` ile kilitler. Eski sürüm `409` ile reddedilir. Çoklu işlemde bir kural bozulursa tüm SQL değişiklikleri geri alınır. `operation_keys`, aynı isteğin ikinci kez yazılmasını engeller. PostgreSQL `EXCLUDE` kısıtı onaylı randevu çakışmasını; benzersiz kısıtlar aynı randevudan ikinci iş emrini ve aynı tahsilat anahtarını engeller. Gönderilmiş teklif kalemlerini trigger kilitler.
+Her yazma, `app_control` satırını `FOR UPDATE` ile kilitler ve komutları en güncel kayda uygular. Durum değiştirme, bulgu, tahsilat, randevu gibi niyet komutları güncel veride iş kurallarından yeniden geçer; başka bir kullanıcının araya giren işlemi bunları reddettirmez. Bir kaydın tamamını üzerine yazan düzenlemeler (müşteri, araç, katalog, stok kartı, ayarlar, personel, not, mevcut teklif kalemi) eski sürümle gelirse `409` ile reddedilir; liste `lib/server/service.ts` içindeki `needsExactRevision` ve testtedir. Okuma tek SELECT ifadesiyle tutarlı anlık görüntü alır. İşlem günlüğü (`audit_log`) yalnız eklenir, uygulama tarafından silinmez. Çoklu işlemde bir kural bozulursa tüm SQL değişiklikleri geri alınır. `operation_keys`, aynı isteğin ikinci kez yazılmasını engeller. PostgreSQL `EXCLUDE` kısıtı onaylı randevu çakışmasını; benzersiz kısıtlar aynı randevudan ikinci iş emrini ve aynı tahsilat anahtarını engeller. Gönderilmiş teklif kalemlerini trigger kilitler.
 
 ## Kimlik ve erişim
 
 Parolalar ve oturumlar Supabase Auth tarafından yönetilir. Node API her istekte Auth kimliğini doğrular; rolü istemcinin verdiği alandan değil aktif PostgreSQL profilinden alır. Auth çerezleri HttpOnly'dir. Yazma isteklerinde Origin denetlenir; oturum yanıtları önbelleğe alınmaz. API'ye tüm veritabanını yükleyebilen bir istemci ucu yoktur.
 
-RLS tüm uygulama tablolarında açıktır. Public/Publishable key ile doğrudan iş verisi yazılamaz; yazmalar doğrulanan Node API üzerinden yapılır. RLS müşteriye kendi kayıtlarını, teknisyene atandığı işleri açar. İç notlar ve değerlendirmeler müşteri/teknisyen tarafından okunamaz; taslak teklifler ve gizli bulgular müşteriye kapalıdır. Sunucu yanıtı ayrıca hassas alanları süzer.
+Erişim iki ayrı katmanda korunur:
+
+- **Doğrudan Supabase erişimi (RLS):** Publishable key tarayıcıda açıktır; bir kullanıcı kendi oturum token'ıyla Supabase'e doğrudan sorgu atabilir. RLS tüm uygulama tablolarında açıktır ve bu yolu müşteri için kendi kayıtları, teknisyen için atandığı işlerle sınırlar; doğrudan yazmaya izin vermez.
+- **Uygulama API'si:** Node API veritabanına sunucu bağlantısıyla bağlanır ve RLS bu bağlantıda devreye girmez. Bu yolda rol ve veri kapsamı `lib/server/service.ts` içindeki `visibleState` ile iş kurallarındaki `need()`/sahiplik kontrolleriyle sağlanır. Müşteriye başka müşterinin kaydı, iç notlar, değerlendirmeler, taslak teklifler ve gizli bulgular; teknisyene atanmadığı işler, ödemeler, müşteri iletişim bilgileri, teslim/bakiye açıklamaları, müşteri görüşme notları ve teklif taslakları gönderilmez. Bu kurallar `tests/backend.test.ts` ve `tests/operations.test.ts` ile denetlenir.
 
 Yeni Auth hesabı oluşturulup SQL kaydı başarısız olursa bu işlemde oluşturulan Auth hesabı geri alınır. Rol/pasiflik değişiklikleri her API isteğinde yeniden değerlendirilir. Supabase erişim token'ları sağlayıcının süre/yenileme kurallarına tabidir.
+
+## Yapay zekâ
+
+Asistan araçları (teknik ön değerlendirme, atölyeye soru, müşteri mesajı, teklifi sade anlatma) `lib/server/ai.ts` içinde yalnız sunucuda çalışır. Sağlayıcı sırası: `DEEPSEEK_API_KEY` varsa DeepSeek, yoksa `ANTHROPIC_API_KEY` varsa Claude, ikisi de yoksa kural/şablon motoru. Anahtarlar `.env.local` ve Vercel ortam değişkenlerinde tutulur; `NEXT_PUBLIC_` öneki kullanılmaz. İsteğe bağlı: `DEEPSEEK_MODEL` (varsayılan `deepseek-chat`), `DEEPSEEK_BASE_URL`.
+
+Cevaplar JSON şemasıyla (zod) doğrulanır; geçersiz cevapta bir kez yeniden denenir, yine olmazsa kural/şablon motoru devreye girer ve ekranda hangi motorun cevap verdiği yazar. Kullanıcı başına günlük 40 çağrı sınırı vardır; her çağrı içerik saklanmadan `ai_requests` tablosuna ölçüm olarak yazılır.
+
+Modele müşteri adı, telefonu, plakası ve iç notlar gönderilmez. Serbest metinler (şikâyet, soru) gönderilmeden önce `lib/privacy.ts` ile maskelenir: telefon, e-posta, T.C. kimlik no, IBAN, plaka ve kayıttaki kişi adları. Mesaj taslaklarında plaka `{PLAKA}` yer tutucusuyla gider ve cevaba sunucuda yerleştirilir. DeepSeek sunucuları yurt dışındadır; maskeleme kusursuz anonimleştirme değildir, gerçek işletme kullanımında KVKK açık rıza/aktarım değerlendirmesi gerekir. Canlı deneme: `npx tsx .work/deepseek-live.ts`.
 
 ## Özel fotoğraflar
 
@@ -85,6 +96,8 @@ Yeni Auth hesabı oluşturulup SQL kaydı başarısız olursa bu işlemde oluşt
 | `POST /api/password` | Auth üzerinden yönetici parola belirleme veya mevcut parolayla kendi parolasını değiştirme |
 | `POST /api/photos` | Yetkili personelin bulgu fotoğrafı yüklemesi |
 | `GET /api/photos?inspectionId=...` | Yetki denetimi sonrası süreli fotoğraf URL'si |
+| `GET /api/ai/status`, `GET /api/ai/usage` | Bağlı yapay zekâ sağlayıcısı, günlük kota; yöneticiye 30 günlük kullanım özeti |
+| `POST /api/ai/technical`, `POST /api/ai/assist` | Teknik ön değerlendirme; atölyeye soru, müşteri mesajı ve teklif açıklaması |
 
 ## Yedek ve geri yükleme
 
@@ -96,7 +109,7 @@ Geri yüklemeden önce uygulama sunucusunu durdurun. Komut: `npm run restore -- 
 
 | Komut | Kapsam |
 |---|---|
-| `npm test` | 22 iş kuralı, veri kapsamı, alan doğrulaması, fotoğraf türü ve model görseli testi |
+| `npm test` | 54 birim testi: iş kuralları, rol bazlı veri kapsamı, alan doğrulaması, revizyon politikası, yapay zekâ sağlayıcısı (sahte ağ ile), kişisel veri maskeleme, fotoğraf türü, e-posta hataları ve model görseli |
 | `npm run build` | TypeScript kontrolü ve üretim derlemesi |
 | `npm run test:integration` | 5 gerçek PostgreSQL/Supabase testi: tablolar, Auth ilişkileri, RLS, rollback, eşzamanlılık ve tam servis akışı |
 | `npm run test:http` | Gerçek Auth çerezleri, giriş/çıkış, rol sınırları, yeniden başlatma sonrası kalıcılık ve özel fotoğraf akışı |
@@ -109,6 +122,8 @@ GitHub Actions aynı kontrolleri ayrı yerel Supabase ortamında çalıştırır
 ## Kalan yayın işleri
 
 Mevcut Vercel adresi https://heb-servis.vercel.app . Yayında uygulama değişkenleri tanımlanmalı; Auth Site URL/redirect adresleri ve e-posta doğrulama/kurtarma teslimatı ayrıca doğrulanmalıdır. Müşteri şifre akışı için `/erisim` yönlendirmesi izinli olmalıdır. Uygulamadaki hesapları yetkili personel oluşturur.
+
+Supabase projesi `ap-northeast-2` (Seul), Vercel `icn1` bölgesindedir. Birbirine yakın oldukları için sunucu-veritabanı gecikmesi düşüktür; ancak Türkiye'deki kullanıcılar için her istek yaklaşık 290 ms ek gecikme taşır ve kişisel veri yurt dışında tutulur. Gerçek işletme kullanımında Frankfurt (`eu-central-1` / `fra1`) bölgesine taşınması önerilir.
 
 Gerçek karttan ödeme ve otomatik SMS bağlı değildir. Tahsilat, dışarıda yapılan ödemeyi kaydeder. Müşteri şifre e-postaları Supabase Auth üzerinden gönderilir; gerçek teslim sağlayıcının SMTP ve alıcı ayarlarına bağlıdır. SQLite 0.4 dosyaları `.work/sqlite-v04/`, eski veri dosyası `data/` ve mevcut yedekler korunur; buluta otomatik taşınmaz.
 

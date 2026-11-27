@@ -36,3 +36,19 @@ test('fotoğraf doğrulaması SVG ve sahte uzantıları kabul etmez', () => {
   assert.equal(photoType(Buffer.from([137,80,78,71,13,10,26,10]))?.mime, 'image/png');
   assert.equal(photoType(Buffer.from([255,216,255,224]))?.mime, 'image/jpeg');
 });
+test('teknisyen yanıtı ödeme, teslim/bakiye açıklaması, görüşme notu ve teklif taslağı içermez', () => {
+  const tech = state.users.find(u => u.role === 'technician')!;
+  const job = state.jobs.find(j => j.technicianId === tech.id)!;
+  const draft = { id: 'taslak-99', version: 99, status: 'Taslak' as const, lines: [{ id: 'l99', kind: 'Parça' as const, code: 'GIZLI-KALEM', name: 'Gizli kalem', unit: 'Adet', qty: 100, unitPrice: 987654, discountPct: 0 }], note: 'gizli taslak notu', createdAt: '2026-01-01T00:00:00Z', createdBy: 'x', vatRate: 20 };
+  const leaky = { ...state, jobs: state.jobs.map(j => j.id !== job.id ? j : {
+    ...j, deliveryNote: 'Bakiye 05321234567 ile anlaşıldı',
+    history: [...j.history, { status: 'Teslim edildi' as const, at: '2026-01-01T00:00:00Z', by: 'Yönetici', note: 'Bakiye anlaşması' }],
+    estimates: [...j.estimates.map(e => ({ ...e, decision: { result: 'Onaylandı' as const, channel: 'Telefon' as const, note: 'Müşteri 0532 ile aradı', by: 'x', at: '2026-01-01T00:00:00Z' } })), draft],
+  }) };
+  const s = visibleState(leaky, { userId: tech.id, name: tech.name, role: 'technician' });
+  assert.ok(s.jobs.length > 0 && s.jobs.every(j => j.technicianId === tech.id));
+  const text = JSON.stringify(s.jobs);
+  for (const leak of ['05321234567', 'Bakiye anlaşması', 'Müşteri 0532', 'GIZLI-KALEM', '987654', 'gizli taslak notu']) assert.ok(!text.includes(leak), leak);
+  assert.ok(s.jobs.every(j => j.payments.length === 0));
+  assert.ok(s.jobs.find(j => j.id === job.id)!.estimates.some(e => e.id === 'taslak-99'), 'taslak sürüm bilgisi korunur');
+});

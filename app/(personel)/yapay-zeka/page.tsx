@@ -12,7 +12,7 @@ import { money } from '@/lib/format';
 import type { Job } from '@/lib/types';
 
 type Tool = 'ask' | 'message' | 'explain' | 'technical';
-interface Status_ { configured: boolean; model: string; usedToday: number; limit: number }
+interface Status_ { configured: boolean; provider: string | null; model: string | null; usedToday: number; limit: number }
 interface Usage { calls: number; ok: number; input: number; output: number; avg_ms: number }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -43,7 +43,7 @@ export default function AiPage() {
     <PageHeader title="Yapay zekâ asistanı" sub="Servis danışmanı ve teknisyen için taslak üretir. Son karar her zaman personelindir; müşteri adı, telefonu ve iç notlar modele gönderilmez." />
     <section className="ai-hero">
       <div className="ai-hero-text">
-        <span className={'ai-state ' + (status?.configured ? 'on' : 'off')}><i />{status ? status.configured ? 'Claude bağlı' : 'Kural/şablon motoru' : 'Kontrol ediliyor…'}</span>
+        <span className={'ai-state ' + (status?.configured ? 'on' : 'off')}><i />{status ? status.configured ? `${status.provider} bağlı` : 'Kural/şablon motoru' : 'Kontrol ediliyor…'}</span>
         <h2>Atölyenin verisiyle çalışan asistan</h2>
         <p>{status?.configured ? `${status.model} modeli kullanılıyor. Bugün ${status.usedToday} / ${status.limit} çağrı yaptınız.` : 'Anahtar tanımlanana kadar her araç, kural ve şablon motoruyla yine çalışır; ekranda hangi motorun cevap verdiği yazar.'}</p>
         {status?.configured && <div className="quota"><i style={{ width: `${Math.min(100, status.usedToday / status.limit * 100)}%` }} /></div>}

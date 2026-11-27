@@ -35,9 +35,10 @@ export async function transaction<T>(work: (client: PoolClient) => Promise<T>, r
   } catch (error) { await client.query('ROLLBACK'); throw error; }
   finally { client.release(); }
 }
-export async function readState(client?: PoolClient): Promise<{ state: State; revision: number }> {
-  if (client) return readRelationalState(client);
-  return transaction(c => readRelationalState(c), true);
+export async function readState(client?: PoolClient, options: { fullAudit?: boolean } = {}): Promise<{ state: State; revision: number }> {
+  if (client) return readRelationalState(client, options);
+  // Tek SELECT ifadesi PostgreSQL'de tutarlı bir anlık görüntü okur; BEGIN/COMMIT iki gidiş-dönüş daha ekler.
+  return readRelationalState(db(), options);
 }
 export async function writeState(client: PoolClient, before: State | null, next: State, revision: number) {
   await writeRelationalState(client, before, next);

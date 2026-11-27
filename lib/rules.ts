@@ -353,7 +353,9 @@ export function setEstimateNote(state: State, actor: Actor, jobId: string, note:
 }
 export function sendEstimate(state: State, actor: Actor, jobId: string, clock = new Date()): State {
   need(actor, 'estimate.write');
-  const job = findJob(state, jobId); const draft = editableEstimate(job);
+  const job = findJob(state, jobId);
+  ensure(job.status !== 'İptal' && job.status !== 'Teslim edildi', 'İptal edilmiş veya teslim edilmiş işte teklif gönderilemez.');
+  const draft = editableEstimate(job);
   ensure(draft.lines.length > 0, 'En az bir teklif kalemi ekleyin.');
   ensure(job.status !== 'Kabul edildi' || job.inspections.length > 0, 'Teklif göndermeden önce en az bir kontrol bulgusu kaydedin.');
   const at = nowIso(clock);
@@ -368,6 +370,7 @@ export function decideEstimate(state: State, actor: Actor, jobId: string, estima
   need(actor, 'estimate.decide');
   const job = findJob(state, jobId);
   ensure(ownsJob(actor, job), 'Bu teklif size ait değil.');
+  ensure(job.status !== 'İptal' && job.status !== 'Teslim edildi', 'İptal edilmiş veya teslim edilmiş işte teklif kararı verilemez.');
   const latest = latestEstimate(job);
   ensure(latest && latest.id === estimateId, 'Bu teklif sürümü artık geçerli değil. Güncel sürümü inceleyin.');
   ensure(latest.status === 'Gönderildi', 'Bu teklif için karar zaten kaydedilmiş veya teklif henüz gönderilmemiş.');
