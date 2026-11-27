@@ -63,6 +63,10 @@ async function main() {
   assert.equal(sent.status, 200, 'Erişim e-postası sağlayıcıya iletilmeli');
   const status = await (await request(endpoint, advisor)).json();
   assert.equal(status.account.email, email); assert.equal(status.deliveries[0].status, 'sent');
+  assert.equal(status.localEmailDelivery, true, 'Yerel .test Mailpit teslimi açık kalmalı.');
+  assert.equal(status.deliveries[0].error_code, null);
+  assert.equal(status.deliveries[0].error_message, null);
+  assert.ok(status.deliveries[0].completed_at, 'Teslim denemesi tamamlanma zamanı kaydedilmeli.');
   assert.equal((await request('/api/customer-access', advisor, {customerId:fixture})).status, 429);
   assert.equal((await db().query('select id from profiles where customer_id=$1', [fixture])).rowCount, 1);
   assert.equal((await db().query('select id from customer_access_deliveries where customer_id=$1', [fixture])).rowCount, 1);
