@@ -51,15 +51,17 @@ export function deepseek(): Provider | null {
   if (!key) return null;
   const base = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/+$/, '');
   const model = process.env.DEEPSEEK_MODEL || 'deepseek-flash'; // deepseek-chat/reasoner 24.07.2026'da sonlandırıldı
-  const once = async <T,>(system: string, prompt: string, schema: z.ZodType<T>, maxTokens: number, timeoutMs: number): Promise<Run<T>> => {
+  // Düşünme (reasoning) tokenları max_tokens bütçesinden düşer. Kısa yapılandırılmış görevlerde kapalıdır;
+  // 'medium' görevlerde açıktır ve cevap bütçesinin tükenmemesi için ayrı pay eklenir (canlı ölçüm 28.11.2026).
+  const once = async <T,>(system: string, prompt: string, schema: z.ZodType<T>, maxTokens: number, timeoutMs: number, think: boolean): Promise<Run<T>> => {
     let res: Response;
     try {
       res = await fetch(`${base}/chat/completions`, {
         method: 'POST', signal: AbortSignal.timeout(timeoutMs),
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model, max_tokens: maxTokens, stream: false, response_format: { type: 'json_object' },
-          ...(/reasoner/i.test(model) ? {} : { temperature: 0.3 }),
+          model, max_tokens: think ? maxTokens + 6000 : maxTokens, stream: false, response_format: { type: 'json_object' },
+          ...(think ? {} : { thinking: { type: 'disabled' }, temperature: 0.3 }),
           messages: [
             { role: 'system', content: `${system}\n\nCevabını yalnız aşağıdaki JSON şemasına uyan tek bir JSON nesnesi (json) olarak ver; açıklama veya kod bloğu ekleme.\n${JSON.stringify(z.toJSONSchema(schema))}` },
             { role: 'user', content: prompt },
@@ -80,13 +82,14 @@ export function deepseek(): Provider | null {
     engine: 'deepseek', label: 'DeepSeek', model,
     // JSON kipinde nadiren boş/eksik cevap döner; süre kalırsa bir kez yeniden denenir.
     // İki deneme birlikte API rotasının 60 sn sınırının altında kalır; ikinci deneme hata verirse ilk denemenin token kullanımı kaybolmaz.
-    async run<T>(system: string, prompt: string, schema: z.ZodType<T>, maxTokens: number) {
+    async run<T>(system: string, prompt: string, schema: z.ZodType<T>, maxTokens: number, effort: 'low' | 'medium') {
+      const think = effort === 'medium';
       const deadline = Date.now() + 50_000;
-      const first = await once(system, prompt, schema, maxTokens, 40_000);
+      const first = await once(system, prompt, schema, maxTokens, 40_000, think);
       const left = deadline - Date.now();
       if (first.data || left < 12_000) return first;
       try {
-        const second = await once(system, prompt, schema, maxTokens, left);
+        const second = await once(system, prompt, schema, maxTokens, left, think);
         return { ...second, input: first.input + second.input, output: first.output + second.output };
       } catch (e) { return { ...first, stop: `retry-${e instanceof AiFailure ? e.kind : 'error'}` } }
     },
@@ -291,13 +294,23 @@ async function explain(actor: Actor, jobId: unknown) {
   const findings = job.inspections.filter(i => i.result !== 'Uygun').map(i => `${maskPersonal(i.item, names)} (${i.result})`);
   const lines = est.lines.map(l => `- ${maskPersonal(l.name, names)} | ${l.kind} | ${TL(lineTotals(l).net)}`);
   const total = estimateTotals(est).total;
+  const templateItem = (l: typeof est.lines[number]) => ({ name: l.name, plain: l.kind === 'İşçilik' ? 'Ustalarımızın bu iş için harcayacağı çalışma süresi.' : 'Aracınıza takılacak yeni parça veya sarf malzemesi.', why: findings.length ? `Muayenede görülen bulgular: ${findings.slice(0, 2).join(', ')}.` : 'Periyodik bakım kapsamında önerilmektedir.', urgency: job.inspections.some(i => i.result === 'Acil') ? 'Yakında' as const : 'Planlı' as const });
   const out = await callModel(actor, 'explain', `Araç servisinde teknik teklif kalemlerini, teknik bilgisi olmayan bir araç sahibine açıklıyorsun. Türkçe, sade, dürüst ve kısa yaz.
-Korkutma, satış baskısı yapma. Aciliyeti yalnız bulgulara göre belirle: güvenlikle ilgili 'Acil' bulgu varsa 'Hemen', 'Takip edilmeli' ise 'Yakında', diğerleri 'Planlı'.`,
+Yalnız verilen teklif kalemlerini, verilen adlarıyla açıkla; listede olmayan kalem ekleme. Korkutma, satış baskısı yapma. Aciliyeti yalnız bulgulara göre belirle: güvenlikle ilgili 'Acil' bulgu varsa 'Hemen', 'Takip edilmeli' ise 'Yakında', diğerleri 'Planlı'.`,
     `Araç: ${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${job.intake.km} km\nTeklif kalemleri:\n${lines.join('\n')}\nMuayene bulguları: ${findings.join('; ') || 'yok'}\nTeklif toplamı: ${TL(total)}`, Plain, 2500);
-  if (out.ok) return { ...out.data, total, version: est.version, engine: out.engine, ai: true };
+  if (out.ok) {
+    // Model yalnız teklifteki kalemleri açıklayabilir: uydurulan kalemler atılır, atlanan kalemler şablonla tamamlanır.
+    const norm = (t: string) => t.toLocaleLowerCase('tr').replace(/\s+/g, ' ').trim();
+    const byName = new Map(out.data.items.map(i => [norm(i.name), i]));
+    const items = est.lines.map(l => {
+      const hit = byName.get(norm(l.name)) ?? out.data.items.find(i => norm(i.name).includes(norm(l.name)) || norm(l.name).includes(norm(i.name)));
+      return hit ? { ...hit, name: l.name } : templateItem(l);
+    });
+    return { ...out.data, items, total, version: est.version, engine: out.engine, ai: true };
+  }
   return {
     intro: `${vehicle.brand} ${vehicle.model} aracınız için hazırlanan teklifteki kalemler aşağıda sade bir dille özetlenmiştir.`,
-    items: est.lines.map(l => ({ name: l.name, plain: l.kind === 'İşçilik' ? 'Ustalarımızın bu iş için harcayacağı çalışma süresi.' : 'Aracınıza takılacak yeni parça veya sarf malzemesi.', why: findings.length ? `Muayenede görülen bulgular: ${findings.slice(0, 2).join(', ')}.` : 'Periyodik bakım kapsamında önerilmektedir.', urgency: job.inspections.some(i => i.result === 'Acil') ? 'Yakında' as const : 'Planlı' as const })),
+    items: est.lines.map(templateItem),
     closing: 'Kalemlerden hangisinin yapılacağına siz karar verirsiniz; sorularınızı servis danışmanınıza iletebilirsiniz.',
     total, version: est.version, engine: 'Şablon', ai: false, notice: out.notice,
   };

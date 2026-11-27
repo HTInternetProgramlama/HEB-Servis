@@ -23,6 +23,7 @@ test('DeepSeek: JSON kipi, şema doğrulama ve anahtarın yalnız başlıkta git
     assert.deepEqual(r.data, { answer: 'tamam' });
     const body = JSON.parse(String(calls[0].body));
     assert.equal(body.response_format.type, 'json_object');
+    assert.deepEqual(body.thinking, { type: 'disabled' }, 'kısa görevde düşünme kapalı');
     assert.match(body.messages[0].content, /JSON/);
     assert.equal((calls[0].headers as Record<string, string>).Authorization, 'Bearer sk-test');
     assert.ok(!String(calls[0].body).includes('sk-test'));
@@ -46,4 +47,13 @@ test('DeepSeek: HTTP hataları sınıflandırılır', async () => {
     await withFetch([() => new Response('{}', { status })], async () => {
       await assert.rejects(deepseek()!.run('s', 'p', schema, 100, 'low'), (e: Error) => e.message === kind);
     });
+});
+
+test('DeepSeek: medium görevde düşünme açık ve ayrı token payı eklenir', async () => {
+  process.env.DEEPSEEK_API_KEY = 'sk-test';
+  await withFetch([ok('{"answer":"x"}')], async calls => {
+    await deepseek()!.run('s', 'p', schema, 1000, 'medium');
+    const body = JSON.parse(String(calls[0].body));
+    assert.equal(body.thinking, undefined); assert.ok(body.max_tokens > 1000);
+  });
 });
