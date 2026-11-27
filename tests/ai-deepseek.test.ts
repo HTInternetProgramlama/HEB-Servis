@@ -9,7 +9,7 @@ function withFetch(replies: (() => Response)[], run: (calls: RequestInit[]) => P
   globalThis.fetch = (async (_url: string, init: RequestInit) => { calls.push(init); return replies[Math.min(i++, replies.length - 1)]() }) as typeof fetch;
   return run(calls).finally(() => { globalThis.fetch = original });
 }
-const ok = (content: string, finish = 'stop') => () => Response.json({ model: 'deepseek-chat', usage: { prompt_tokens: 10, completion_tokens: 5 }, choices: [{ finish_reason: finish, message: { content } }] });
+const ok = (content: string, finish = 'stop') => () => Response.json({ model: 'deepseek-flash', usage: { prompt_tokens: 10, completion_tokens: 5 }, choices: [{ finish_reason: finish, message: { content } }] });
 
 test('DeepSeek: anahtar yoksa veya yer tutucuysa sağlayıcı kapalıdır', () => {
   delete process.env.DEEPSEEK_API_KEY; assert.equal(deepseek(), null);

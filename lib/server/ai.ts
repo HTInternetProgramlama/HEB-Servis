@@ -50,7 +50,7 @@ export function deepseek(): Provider | null {
   const key = realKey(process.env.DEEPSEEK_API_KEY);
   if (!key) return null;
   const base = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/+$/, '');
-  const model = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
+  const model = process.env.DEEPSEEK_MODEL || 'deepseek-flash'; // deepseek-chat/reasoner 24.07.2026'da sonlandırıldı
   const once = async <T,>(system: string, prompt: string, schema: z.ZodType<T>, maxTokens: number, timeoutMs: number): Promise<Run<T>> => {
     let res: Response;
     try {
@@ -61,7 +61,7 @@ export function deepseek(): Provider | null {
           model, max_tokens: maxTokens, stream: false, response_format: { type: 'json_object' },
           ...(/reasoner/i.test(model) ? {} : { temperature: 0.3 }),
           messages: [
-            { role: 'system', content: `${system}\n\nCevabını yalnız aşağıdaki JSON şemasına uyan tek bir JSON nesnesi olarak ver; açıklama veya kod bloğu ekleme.\n${JSON.stringify(z.toJSONSchema(schema))}` },
+            { role: 'system', content: `${system}\n\nCevabını yalnız aşağıdaki JSON şemasına uyan tek bir JSON nesnesi (json) olarak ver; açıklama veya kod bloğu ekleme.\n${JSON.stringify(z.toJSONSchema(schema))}` },
             { role: 'user', content: prompt },
           ],
         }),

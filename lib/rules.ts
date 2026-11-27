@@ -65,6 +65,12 @@ export function resourceName(state: State, id: string) { return state.settings.r
 /* ───────────── Müşteri ve araç ───────────── */
 
 export type CustomerInput = Omit<Customer, 'id' | 'no' | 'createdAt'>;
+function normalizePhoneForComparison(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('90')) return digits.slice(2);
+  if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1);
+  return digits;
+}
 function validateCustomer(input: CustomerInput) {
   ensure(input.name.trim().length >= 3, 'Müşteri / firma adı en az 3 karakter olmalı.');
   ensure(/^\+?[\d\s()-]{10,20}$/.test(input.phone.trim()), 'Geçerli bir telefon numarası girin (ör. 0555 123 45 67).');
@@ -75,8 +81,8 @@ function validateCustomer(input: CustomerInput) {
 }
 export function addCustomer(state: State, actor: Actor, input: CustomerInput, clock = new Date()): State {
   need(actor, 'customer.write'); validateCustomer(input);
-  const phone = input.phone.replace(/\D/g, '');
-  ensure(!state.customers.some(c => c.phone.replace(/\D/g, '') === phone), 'Bu telefon numarasıyla kayıtlı bir müşteri var.');
+  const phone = normalizePhoneForComparison(input.phone);
+  ensure(!state.customers.some(c => normalizePhoneForComparison(c.phone) === phone), 'Bu telefon numarasıyla kayıtlı bir müşteri var.');
   const seq = state.seq.customer + 1;
   const customer: Customer = { ...input, name: input.name.trim(), phone: input.phone.trim(), email: input.email.trim(), taxNo: input.taxNo.trim(), id: uid(), no: 'M-' + pad(seq), createdAt: nowIso(clock) };
   return { ...state, seq: { ...state.seq, customer: seq }, customers: [...state.customers, customer] };
@@ -84,7 +90,8 @@ export function addCustomer(state: State, actor: Actor, input: CustomerInput, cl
 export function updateCustomer(state: State, actor: Actor, id: string, input: CustomerInput): State {
   need(actor, 'customer.write'); validateCustomer(input);
   ensure(state.customers.some(c => c.id === id), 'Müşteri bulunamadı.');
-  ensure(!state.customers.some(c => c.id !== id && c.phone.replace(/\D/g, '') === input.phone.replace(/\D/g, '')), 'Bu telefon numarasıyla kayıtlı bir müşteri var.');
+  const phone = normalizePhoneForComparison(input.phone);
+  ensure(!state.customers.some(c => c.id !== id && normalizePhoneForComparison(c.phone) === phone), 'Bu telefon numarasıyla kayıtlı bir müşteri var.');
   return { ...state, customers: state.customers.map(c => c.id === id ? { ...c, ...input, name: input.name.trim(), phone: input.phone.trim() } : c) };
 }
 

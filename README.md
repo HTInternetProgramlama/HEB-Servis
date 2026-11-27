@@ -76,11 +76,11 @@ Yeni Auth hesabı oluşturulup SQL kaydı başarısız olursa bu işlemde oluşt
 
 ## Yapay zekâ
 
-Asistan araçları (teknik ön değerlendirme, atölyeye soru, müşteri mesajı, teklifi sade anlatma) `lib/server/ai.ts` içinde yalnız sunucuda çalışır. Sağlayıcı sırası: `DEEPSEEK_API_KEY` varsa DeepSeek, yoksa `ANTHROPIC_API_KEY` varsa Claude, ikisi de yoksa kural/şablon motoru. Anahtarlar `.env.local` ve Vercel ortam değişkenlerinde tutulur; `NEXT_PUBLIC_` öneki kullanılmaz. İsteğe bağlı: `DEEPSEEK_MODEL` (varsayılan `deepseek-chat`), `DEEPSEEK_BASE_URL`.
+Asistan araçları (teknik ön değerlendirme, atölyeye soru, müşteri mesajı, teklifi sade anlatma) `lib/server/ai.ts` içinde yalnız sunucuda çalışır. Sağlayıcı sırası: `DEEPSEEK_API_KEY` varsa DeepSeek, yoksa `ANTHROPIC_API_KEY` varsa Claude, ikisi de yoksa kural/şablon motoru. Anahtarlar `.env.local` ve Vercel ortam değişkenlerinde tutulur; `NEXT_PUBLIC_` öneki kullanılmaz. İsteğe bağlı: `DEEPSEEK_MODEL` (varsayılan `deepseek-flash`; daha güçlü seçenek `deepseek-v4-pro`; eski `deepseek-chat` 24.07.2026'da sonlandırıldı), `DEEPSEEK_BASE_URL`.
 
 Cevaplar JSON şemasıyla (zod) doğrulanır; geçersiz cevapta bir kez yeniden denenir, yine olmazsa kural/şablon motoru devreye girer ve ekranda hangi motorun cevap verdiği yazar. Kullanıcı başına günlük 40 çağrı sınırı vardır; her çağrı içerik saklanmadan `ai_requests` tablosuna ölçüm olarak yazılır.
 
-Modele müşteri adı, telefonu, plakası ve iç notlar gönderilmez. Serbest metinler (şikâyet, soru) gönderilmeden önce `lib/privacy.ts` ile maskelenir: telefon, e-posta, T.C. kimlik no, IBAN, plaka ve kayıttaki kişi adları. Mesaj taslaklarında plaka `{PLAKA}` yer tutucusuyla gider ve cevaba sunucuda yerleştirilir. DeepSeek sunucuları yurt dışındadır; maskeleme kusursuz anonimleştirme değildir, gerçek işletme kullanımında KVKK açık rıza/aktarım değerlendirmesi gerekir. Canlı deneme: `npx tsx .work/deepseek-live.ts`.
+Modele müşteri adı, telefonu, plakası ve iç notlar gönderilmez. Serbest metinler (şikâyet, soru) gönderilmeden önce `lib/privacy.ts` ile maskelenir: telefon, e-posta, T.C. kimlik no, IBAN, plaka ve kayıttaki kişi adları. Mesaj taslaklarında plaka `{PLAKA}` yer tutucusuyla gider ve cevaba sunucuda yerleştirilir. DeepSeek sunucuları yurt dışındadır; maskeleme kusursuz anonimleştirme değildir, gerçek işletme kullanımında KVKK m.9 kapsamında yurt dışı aktarım güvencesi gerekir: Türkiye için yeterlilik kararı bulunmadığından düzenli API aktarımında sağlayıcıyla Kurul standart sözleşmesi imzalanıp 5 iş günü içinde Kurula bildirilmelidir; açık rıza yalnız arızi aktarımlar içindir (kaynak: kvkk.gov.tr, Yurtdışına Aktarım). Canlı deneme: `npx tsx .work/deepseek-live.ts`.
 
 ## Özel fotoğraflar
 

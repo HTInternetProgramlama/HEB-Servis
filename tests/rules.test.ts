@@ -4,7 +4,7 @@ import { seed } from '../lib/seed';
 import {
   addCustomer, addInspection, addNote, addVehicle, allowedMoves, amountDue, balance, confirmAppointment, createEstimateDraft, decideEstimate,
   deliverJob, estimateTotals, evaluateVisit, lineTotals, moveJob, openJob, portalView, recordPayment, requestAppointment, sendEstimate,
-  setAppointmentStatus, upsertLine, can,
+  setAppointmentStatus, updateCustomer, upsertLine, can,
 } from '../lib/rules';
 import { generateTechnicalDraft } from '../lib/advisor';
 import { parseMoney, parseQty } from '../lib/format';
@@ -197,6 +197,28 @@ test('müşteri ve araç doğrulamaları', () => {
   assert.equal(next.customers.at(-1)!.no, 'M-0009');
   assert.throws(() => addVehicle(s, advisor, { customerId: 'c1', plate: '58 ad 240', brand: 'VW', model: 'Golf', year: 2020, km: 100, vin: '', fuel: 'Benzin', transmission: 'Manuel', color: '' }), /plaka/);
   assert.throws(() => addVehicle(s, advisor, { customerId: 'c1', plate: '34 XY 99', brand: 'VW', model: 'Golf', year: 2020, km: 100, vin: 'ABC', fuel: 'Benzin', transmission: 'Manuel', color: '' }), /Şasi/);
+});
+
+test('müşteri: farklı telefon yazımları ekleme ve güncellemede mükerrer kayıt oluşturamaz', () => {
+  const phones = ['0532 123 45 67', '+90 532 1234567', '5321234567', '0(532)123-45-67'];
+  const input = { kind: 'Bireysel' as const, name: 'Deniz Test', phone: '', email: '', address: '', taxNo: '', preference: 'Telefon' as const, consent: true };
+  for (const storedPhone of phones) {
+    const s = addCustomer({ ...base(), customers: [] }, advisor, { ...input, phone: storedPhone }, clock);
+    const customer = s.customers[0];
+    assert.equal(customer.phone, storedPhone);
+    const withOther = addCustomer(s, advisor, { ...input, phone: '0532 123 45 68' }, clock);
+    const other = withOther.customers[1];
+    for (const phone of phones) {
+      assert.throws(() => addCustomer(s, advisor, { ...input, phone }, clock), /Bu telefon numarasıyla kayıtlı bir müşteri var/);
+      assert.throws(() => updateCustomer(withOther, advisor, other.id, { ...input, phone }), /Bu telefon numarasıyla kayıtlı bir müşteri var/);
+      const updated = updateCustomer(withOther, advisor, customer.id, { ...input, phone });
+      assert.equal(updated.customers[0].phone, phone);
+      assert.equal(updated.customers[1].phone, other.phone);
+      assert.equal(withOther.customers[0].phone, storedPhone);
+    }
+    const updated = updateCustomer(withOther, advisor, other.id, { ...input, phone: '+90 532 1234569' });
+    assert.equal(updated.customers[1].phone, '+90 532 1234569');
+  }
 });
 
 test('örnek veri tutarlıdır: açık iş emri olan araçlarda tekrar yok, bekleyen teklif portalda görünür', () => {
